@@ -58,10 +58,11 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		fallingMoveSpeed = 10;
 		moveSpeed = 50;
+		currentSpeed = moveSpeed;
 		turnSpeed = 60;
 		jumpTime = 0;
 		jumpHeight = cameraHeight;
-		jumpLength = 2;
+		jumpLength = 1;
 		
 		horizon = screenHeight / 2;
 		drawDist = 800;
@@ -97,22 +98,14 @@ public class VoxelSpaceEngine implements KeyListener {
 		boolean running = true;
 		double currentTime = System.currentTimeMillis();
 		
-		double lastPosX;
-		double lastPosY;
-		double lastPosZ;
 		double originalJumpPosZ = 0;
 		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.screenWidth, engine.screenHeight, engine.renderFrame(), 0, engine.screenWidth);
 			display.getGraphics().drawRect(0, 0, engine.screenWidth, engine.screenHeight);
-			display.getGraphics().drawImage(frame, 0, 0, null);
-			display.getGraphics().drawString("" + engine.posZ, 100, 100);
-			display.getGraphics().drawString("" + engine.jumpTime, 100, 120);			
+			display.getGraphics().drawImage(frame, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
-			lastPosX = engine.posX;
-			lastPosY = engine.posY;
-			lastPosZ = engine.posZ;
 			for(int key : engine.keysPressed) {
 				switch(key) {
 				case KeyEvent.VK_UP:
@@ -152,7 +145,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			//jumping
 			if(engine.jumpTime > 0) {
-					engine.posZ = (((-1 * Math.pow(engine.jumpTime - (engine.jumpLength / 2), 2) * engine.jumpHeight) + engine.jumpHeight) + originalJumpPosZ);
+					engine.posZ = (((-engine.jumpHeight * Math.pow(engine.jumpTime - (engine.jumpLength / 2), 2) * 4) + engine.jumpHeight) + originalJumpPosZ);
 					engine.jumpTime -= engine.elapsedTime;
 					if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) {
 						engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
@@ -163,7 +156,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			//gravity and move speed slow while falling
 			if(engine.posZ > (engine.heightMap[(int)engine.posX][(int)engine.posY]) && engine.jumpTime == 0) {
-				engine.posZ -= ((engine.cameraHeight / 2) * 6) * engine.elapsedTime;
+				engine.posZ -= ((engine.cameraHeight / 2) * 10) * engine.elapsedTime;
 				if(engine.currentSpeed > engine.fallingMoveSpeed) {
 					engine.currentSpeed -= (engine.moveSpeed - engine.fallingMoveSpeed) / 50;
 				}
@@ -228,6 +221,9 @@ public class VoxelSpaceEngine implements KeyListener {
 	}
 	
 	void move(int moveDirection, double speed) {
+		double lastPosX = posX;
+		double lastPosY = posY;
+		double lastPosZ = posZ;
 		switch(moveDirection) {
 			case 1: //forward
 				posX -= Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
@@ -250,6 +246,11 @@ public class VoxelSpaceEngine implements KeyListener {
 		posY = (imageHeightMap.getHeight() + posY) % imageHeightMap.getHeight();
 		if(posZ < heightMap[(int)posX][(int)posY]) {
 			posZ = heightMap[(int)posX][(int)posY];
+			if(posZ - lastPosZ > cameraHeight / 4) {
+				posX = lastPosX;
+				posY = lastPosY;
+				posZ = lastPosZ;
+			}
 		}
 	}
 
