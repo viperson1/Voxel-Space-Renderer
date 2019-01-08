@@ -1,0 +1,272 @@
+import java.awt.Color;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.imageio.ImageIO;
+import javax.swing.JFrame;
+
+public class VoxelSpaceEngine implements KeyListener {
+	
+	
+	double posX;
+	double posY;
+	double posZ;
+	double cameraHeight;
+	double moveSpeed;
+	double currentSpeed;
+	double fallingMoveSpeed;
+	double turnSpeed;
+	double jumpTime;
+	double jumpHeight;
+	double jumpLength;
+	
+	double direction;
+	
+	double horizon;
+	int drawDist;
+	int fov;
+	double heightScale;
+	
+	KeyListener input;
+	
+	File inputHeightMap;
+	File inputColorMap;
+	BufferedImage imageHeightMap;
+	BufferedImage imageColorMap;
+	int[][] heightMap;
+	int[][] colorMap;
+	
+	int screenWidth;
+	int screenHeight;
+	
+	double elapsedTime;
+	
+	VoxelSpaceEngine() throws IOException {
+		screenWidth = 960;
+		screenHeight = 720;
+		
+		posX = 0;
+		posY = 0;
+		posZ = 178;
+		cameraHeight = 16;
+		direction = 90;
+		
+		fallingMoveSpeed = 10;
+		moveSpeed = 50;
+		turnSpeed = 60;
+		jumpTime = 0;
+		jumpHeight = cameraHeight;
+		jumpLength = 2;
+		
+		horizon = screenHeight / 2;
+		drawDist = 800;
+		fov = 90;
+		heightScale = 240;
+		
+		inputHeightMap = new File("D1.png");
+		imageHeightMap = ImageIO.read(inputHeightMap);
+		inputColorMap = new File("C1W.png");
+		imageColorMap = ImageIO.read(inputColorMap);
+		heightMap = new int[imageHeightMap.getWidth()][imageHeightMap.getHeight()];
+		colorMap = new int[imageColorMap.getWidth()][imageColorMap.getHeight()];
+		
+		for(int x = 0; x < imageHeightMap.getWidth(); x++) {
+			for(int y = 0; y < imageHeightMap.getHeight(); y++) {
+				heightMap[x][y] = evaluatePixel(imageHeightMap, x, y);
+				colorMap[x][y] = imageColorMap.getRGB(x, y);
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws IOException {
+		VoxelSpaceEngine engine = new VoxelSpaceEngine();
+		JFrame display = new JFrame("Display");
+		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		display.setSize(engine.screenWidth, engine.screenHeight);
+		display.setVisible(true);
+		display.setResizable(false);
+		display.addKeyListener(engine);
+		
+		BufferedImage frame = new BufferedImage(engine.screenWidth, engine.screenHeight, BufferedImage.TYPE_INT_ARGB);
+		
+		boolean running = true;
+		double currentTime = System.currentTimeMillis();
+		
+		double lastPosX;
+		double lastPosY;
+		double lastPosZ;
+		double originalJumpPosZ = 0;
+		
+		while(running) { //game loop
+			frame.setRGB(0, 0, engine.screenWidth, engine.screenHeight, engine.renderFrame(), 0, engine.screenWidth);
+			display.getGraphics().drawRect(0, 0, engine.screenWidth, engine.screenHeight);
+			display.getGraphics().drawImage(frame, 0, 0, null);
+			display.getGraphics().drawString("" + engine.posZ, 100, 100);
+			display.getGraphics().drawString("" + engine.jumpTime, 100, 120);			
+			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
+			currentTime = System.currentTimeMillis();
+			lastPosX = engine.posX;
+			lastPosY = engine.posY;
+			lastPosZ = engine.posZ;
+			for(int key : engine.keysPressed) {
+				switch(key) {
+				case KeyEvent.VK_UP:
+					engine.horizon += Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.screenHeight / 2) * engine.elapsedTime;
+					if(engine.horizon > engine.screenHeight) engine.horizon = engine.screenHeight;
+					break;
+				case KeyEvent.VK_DOWN:
+					engine.horizon -= Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.screenHeight / 2) * engine.elapsedTime;
+					if(engine.horizon < 0) engine.horizon = 0;
+					break;
+				case KeyEvent.VK_LEFT:
+					engine.direction += engine.turnSpeed * engine.elapsedTime;
+					break;
+				case KeyEvent.VK_RIGHT:
+					engine.direction -= engine.turnSpeed * engine.elapsedTime;
+					break;
+				case KeyEvent.VK_W:
+					engine.move(1, engine.currentSpeed);
+					break;
+				case KeyEvent.VK_S:
+					engine.move(2, engine.currentSpeed);	
+					break;
+				case KeyEvent.VK_A:
+					engine.move(3, engine.currentSpeed);
+					break;
+				case KeyEvent.VK_D:
+					engine.move(4, engine.currentSpeed);
+					break;
+				case KeyEvent.VK_SPACE:
+					if(engine.jumpTime == 0 && engine.posZ == engine.heightMap[(int)engine.posX][(int)engine.posY]) {
+						originalJumpPosZ = (int) engine.posZ;
+						engine.jumpTime = engine.jumpLength;
+						break;
+					}
+				}
+			}
+			
+			//jumping
+			if(engine.jumpTime > 0) {
+					engine.posZ = (((-1 * Math.pow(engine.jumpTime - (engine.jumpLength / 2), 2) * engine.jumpHeight) + engine.jumpHeight) + originalJumpPosZ);
+					engine.jumpTime -= engine.elapsedTime;
+					if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) {
+						engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
+						engine.jumpTime = 0;
+				}
+			}
+			else if(engine.jumpTime < 0) engine.jumpTime = 0;
+			
+			//gravity and move speed slow while falling
+			if(engine.posZ > (engine.heightMap[(int)engine.posX][(int)engine.posY]) && engine.jumpTime == 0) {
+				engine.posZ -= ((engine.cameraHeight / 2) * 6) * engine.elapsedTime;
+				if(engine.currentSpeed > engine.fallingMoveSpeed) {
+					engine.currentSpeed -= (engine.moveSpeed - engine.fallingMoveSpeed) / 50;
+				}
+				if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
+			}
+			else if(engine.currentSpeed != engine.moveSpeed) {
+				engine.currentSpeed = engine.moveSpeed;
+			}
+		}
+	}
+	
+	int[] renderFrame() {
+		int[] tempFrame = new int[screenWidth * screenHeight];
+		int skyColor = Color.cyan.getRGB();
+		
+		for(int i = 0; i < screenWidth * screenHeight; i++) tempFrame[i] = skyColor;
+		
+		double sinViewAngle = Math.sin(Math.toRadians(direction));
+		double cosViewAngle = Math.cos(Math.toRadians(direction));
+		
+		int[] yBuffer = new int[screenWidth];
+		
+		double dZ = 1.0;
+		for(int layer = 1; layer < drawDist; layer += dZ) {
+			double posXLeft = (-cosViewAngle*layer - sinViewAngle*layer) + posX;
+			double posYLeft = (sinViewAngle*layer - cosViewAngle*layer) + posY;
+			
+			double posXRight = (cosViewAngle*layer - sinViewAngle*layer) + posX;
+			double posYRight = (-sinViewAngle*layer - cosViewAngle*layer) + posY;
+			
+			double dx = (posXRight - posXLeft) / screenWidth;
+			double dy = (posYRight - posYLeft) / screenWidth;
+			
+			for(int column = 0; column < screenWidth; column++) {
+				int loopedX = (int)(((imageHeightMap.getWidth() * 4) + posXLeft) % imageHeightMap.getWidth());
+				int loopedY = (int)(((imageHeightMap.getHeight() * 4) + posYLeft) % imageHeightMap.getHeight());
+				
+				int heightOnScreen = screenHeight - (int)(((posZ + cameraHeight) - heightMap[loopedX][loopedY]) / layer * heightScale + horizon);
+				
+				if(heightOnScreen < 0) heightOnScreen = 0;
+				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight;
+				
+				for(int row = heightOnScreen; row > yBuffer[column]; row--) {
+					tempFrame[(((screenHeight - row) * screenWidth) + column)] = colorMap[loopedX][loopedY];
+				}
+				if(yBuffer[column] < heightOnScreen) yBuffer[column] = heightOnScreen;
+				posXLeft += dx;
+				posYLeft += dy;
+			}
+			dZ += 0.01;
+		}
+		return tempFrame;
+	}
+	
+	int evaluatePixel(BufferedImage image, int x, int y) {
+		int sampleX = (image.getWidth() + x) % image.getWidth();
+		int sampleY = (image.getHeight() + y) % image.getHeight();
+		
+		int color = image.getRGB(sampleX, sampleY);
+		int redChannel = (new Color(color).getRed());
+		return redChannel;
+	}
+	
+	void move(int moveDirection, double speed) {
+		switch(moveDirection) {
+			case 1: //forward
+				posX -= Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
+				posY -= Math.cos(Math.toRadians(direction)) * speed * elapsedTime;
+				break;
+			case 2: //back
+				posX += Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
+				posY += Math.cos(Math.toRadians(direction)) * speed * elapsedTime;
+				break;
+			case 3: //left
+				posX -= Math.cos(Math.toRadians(direction)) * speed * elapsedTime;
+				posY += Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
+				break;
+			case 4: //right
+				posX += Math.cos(Math.toRadians(direction)) * speed * elapsedTime;
+				posY -= Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
+				break;
+		}
+		posX = (imageHeightMap.getWidth() + posX) % imageHeightMap.getWidth();
+		posY = (imageHeightMap.getHeight() + posY) % imageHeightMap.getHeight();
+		if(posZ < heightMap[(int)posX][(int)posY]) {
+			posZ = heightMap[(int)posX][(int)posY];
+		}
+	}
+
+	Set<Integer> keysPressed = new HashSet<>();
+	
+	public void keyPressed(KeyEvent in) {
+		keysPressed.add(in.getKeyCode());
+	}
+	
+	@Override
+	public void keyReleased(KeyEvent e) {
+		keysPressed.remove(e.getKeyCode());
+	}
+
+	@Override
+	public void keyTyped(KeyEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+}
