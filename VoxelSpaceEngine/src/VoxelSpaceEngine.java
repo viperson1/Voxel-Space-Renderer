@@ -16,21 +16,20 @@ public class VoxelSpaceEngine implements KeyListener {
 	double posX;
 	double posY;
 	double posZ;
-	double cameraHeight;
-	double moveSpeed;
+	final double cameraHeight;
+	final double moveSpeed;
 	double currentSpeed;
-	double fallingMoveSpeed;
-	double turnSpeed;
+	final double fallingMoveSpeed;
+	final double turnSpeed;
 	double jumpTime;
-	double jumpHeight;
-	double jumpLength;
+	final double jumpHeight;
+	final double jumpLength;
 	
 	double direction;
 	
 	double horizon;
-	int drawDist;
-	int fov;
-	double heightScale;
+	final int drawDist;
+	final double heightScale;
 	
 	KeyListener input;
 	
@@ -38,13 +37,16 @@ public class VoxelSpaceEngine implements KeyListener {
 	File inputColorMap;
 	BufferedImage imageHeightMap;
 	BufferedImage imageColorMap;
+	int mapWidth;
+	int mapHeight;
 	int[][] heightMap;
 	int[][] colorMap;
 	
-	int screenWidth;
-	int screenHeight;
+	final int screenWidth;
+	final int screenHeight;
 	
 	double elapsedTime;
+	boolean checkingKeys;
 	
 	VoxelSpaceEngine() throws IOException {
 		screenWidth = 960;
@@ -66,22 +68,27 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		horizon = screenHeight / 2;
 		drawDist = 800;
-		fov = 90;
 		heightScale = 240;
 		
 		inputHeightMap = new File("D1.png");
 		imageHeightMap = ImageIO.read(inputHeightMap);
 		inputColorMap = new File("C1W.png");
 		imageColorMap = ImageIO.read(inputColorMap);
-		heightMap = new int[imageHeightMap.getWidth()][imageHeightMap.getHeight()];
-		colorMap = new int[imageColorMap.getWidth()][imageColorMap.getHeight()];
+		mapWidth = imageHeightMap.getWidth();
+		mapHeight = imageHeightMap.getHeight();
+		heightMap = new int[mapWidth][mapHeight];
+		colorMap = new int[mapWidth][mapHeight];
 		
-		for(int x = 0; x < imageHeightMap.getWidth(); x++) {
-			for(int y = 0; y < imageHeightMap.getHeight(); y++) {
+		for(int x = 0; x < mapWidth; x++) {
+			for(int y = 0; y < mapHeight; y++) {
 				heightMap[x][y] = evaluatePixel(imageHeightMap, x, y);
 				colorMap[x][y] = imageColorMap.getRGB(x, y);
 			}
 		}
+		inputHeightMap = null;
+		inputColorMap = null;
+		imageHeightMap = null;
+		imageColorMap = null;
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -106,6 +113,8 @@ public class VoxelSpaceEngine implements KeyListener {
 			display.getGraphics().drawImage(frame, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
+			
+			engine.checkingKeys = true;
 			for(int key : engine.keysPressed) {
 				switch(key) {
 				case KeyEvent.VK_UP:
@@ -142,6 +151,7 @@ public class VoxelSpaceEngine implements KeyListener {
 					}
 				}
 			}
+			engine.checkingKeys = false;
 			
 			//jumping
 			if(engine.jumpTime > 0) {
@@ -191,8 +201,8 @@ public class VoxelSpaceEngine implements KeyListener {
 			double dy = (posYRight - posYLeft) / screenWidth;
 			
 			for(int column = 0; column < screenWidth; column++) {
-				int loopedX = (int)(((imageHeightMap.getWidth() * 4) + posXLeft) % imageHeightMap.getWidth());
-				int loopedY = (int)(((imageHeightMap.getHeight() * 4) + posYLeft) % imageHeightMap.getHeight());
+				int loopedX = (int)(((mapWidth * 4) + posXLeft) % mapWidth);
+				int loopedY = (int)(((mapHeight * 4) + posYLeft) % mapHeight);
 				
 				int heightOnScreen = screenHeight - (int)(((posZ + cameraHeight) - heightMap[loopedX][loopedY]) / layer * heightScale + horizon);
 				
@@ -242,8 +252,8 @@ public class VoxelSpaceEngine implements KeyListener {
 				posY -= Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
 				break;
 		}
-		posX = (imageHeightMap.getWidth() + posX) % imageHeightMap.getWidth();
-		posY = (imageHeightMap.getHeight() + posY) % imageHeightMap.getHeight();
+		posX = (mapWidth + posX) % mapWidth;
+		posY = (mapHeight + posY) % mapHeight;
 		if(posZ < heightMap[(int)posX][(int)posY]) {
 			posZ = heightMap[(int)posX][(int)posY];
 			if(posZ - lastPosZ > cameraHeight / 4) {
@@ -262,7 +272,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	@Override
 	public void keyReleased(KeyEvent e) {
-		keysPressed.remove(e.getKeyCode());
+		if(!checkingKeys)keysPressed.remove(e.getKeyCode());
 	}
 
 	@Override
