@@ -231,8 +231,6 @@ public class VoxelSpaceEngine implements KeyListener {
 	}
 	
 	void move(int moveDirection, double speed) {
-		double lastPosX = posX;
-		double lastPosY = posY;
 		double lastPosZ = posZ;
 		switch(moveDirection) {
 			case 1: //forward
@@ -257,8 +255,10 @@ public class VoxelSpaceEngine implements KeyListener {
 		if(posZ < heightMap[(int)posX][(int)posY]) {
 			posZ = heightMap[(int)posX][(int)posY];
 			if(posZ - lastPosZ > cameraHeight / 4) {
-				posX = lastPosX;
-				posY = lastPosY;
+				if(moveDirection % 2 == 0) {
+					move(moveDirection - 1, speed);
+				}
+				else move(moveDirection + 1, speed);
 				posZ = lastPosZ;
 			}
 		}
