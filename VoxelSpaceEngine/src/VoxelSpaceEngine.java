@@ -4,6 +4,7 @@ import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -40,6 +41,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	int mapWidth;
 	int mapHeight;
 	int[][] heightMap;
+	HashMap<Integer, object> objects;
+	int[][] objectMap;
 	int[][] colorMap;
 	
 	final int screenWidth;
@@ -47,6 +50,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	double elapsedTime;
 	boolean checkingKeys;
+	
+	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
 		screenWidth = 960;
@@ -70,6 +75,10 @@ public class VoxelSpaceEngine implements KeyListener {
 		drawDist = 800;
 		heightScale = 240;
 		
+		for(int i = 0; i < 16; i++) {
+			testObject1Model[i] =ImageIO.read(new File((i + 1) + ".png"));
+		}
+		
 		inputHeightMap = new File("D1.png");
 		imageHeightMap = ImageIO.read(inputHeightMap);
 		inputColorMap = new File("C1W.png");
@@ -77,11 +86,21 @@ public class VoxelSpaceEngine implements KeyListener {
 		mapWidth = imageHeightMap.getWidth();
 		mapHeight = imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
+		objects = new HashMap();
+		objectMap = new int[mapWidth][mapHeight];
 		colorMap = new int[mapWidth][mapHeight];
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
 				heightMap[x][y] = evaluatePixel(imageHeightMap, x, y);
+				if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
+					objects.put((y * mapWidth) + x, new object(testObject1Model));
+					for(int coordX = x; coordX < x + 16; coordX++) {
+						for(int coordY = y; coordY < y + 16; coordY++) {
+							objectMap[coordX][coordY] = (y * mapWidth) + x;
+						}
+					}
+				}
 				colorMap[x][y] = imageColorMap.getRGB(x, y);
 			}
 		}
@@ -210,9 +229,36 @@ public class VoxelSpaceEngine implements KeyListener {
 				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight;
 				
 				for(int row = heightOnScreen; row > yBuffer[column]; row--) {
-					tempFrame[(((screenHeight - row) * screenWidth) + column)] = colorMap[loopedX][loopedY];
+					if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == Color.cyan.getRGB())
+						tempFrame[(((screenHeight - row) * screenWidth) + column)] = colorMap[loopedX][loopedY];
 				}
 				if(yBuffer[column] < heightOnScreen) yBuffer[column] = heightOnScreen;
+				
+				boolean[] objectColumn;
+				if(objectMap[loopedX][loopedY] != 0) {
+					int objectOrigin = objectMap[loopedX][loopedY];
+					int objectOriginX = objectOrigin % mapWidth;
+					int objectOriginY = (int) Math.floor(objectOrigin / mapWidth);
+					int relativePointX = loopedX - objectOriginX;
+					int relativePointY = loopedY - objectOriginY;
+					objectColumn = objects.get(objectOrigin).getColumn(relativePointX, relativePointY);
+					for(int i = 0; i < 16; i++) {
+						if(objectColumn[i]) {
+							int startHeight = screenHeight - (int)((((posZ + cameraHeight) - (heightMap[loopedX][loopedY] + (i - 0.5))) / layer * heightScale + horizon));
+							int endHeight = screenHeight - (int)((((posZ + cameraHeight) - (heightMap[loopedX][loopedY] + (i + 0.5))) / layer * heightScale + horizon));
+							if(startHeight > screenHeight) startHeight = screenHeight;
+							if(startHeight < 0) startHeight = 0;
+							if(endHeight > screenHeight) endHeight = screenHeight;
+							if(endHeight < 0) endHeight = 0;
+							for(int height = startHeight; height < endHeight; height++) {
+								if(tempFrame[(((screenHeight - height) * screenWidth) + column)] == Color.cyan.getRGB())
+									tempFrame[(((screenHeight - height) * screenWidth) + column)] = Color.black.getRGB();
+							}
+						}
+					}
+				}
+				else objectColumn = null;
+				
 				posXLeft += dx;
 				posYLeft += dy;
 			}
