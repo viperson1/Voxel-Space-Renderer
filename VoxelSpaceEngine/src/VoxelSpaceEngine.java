@@ -43,7 +43,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	int mapWidth;
 	int mapHeight;
 	int[][] heightMap;
-	HashMap<Integer, object> objects;
+	HashMap<Integer, StaticObject> objects;
+	int objectRotation;
 	int[][] objectMap;
 	int[][] colorMap;
 	
@@ -68,7 +69,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		fallingMoveSpeed = 10;
 		moveSpeed = 30;
 		currentSpeed = moveSpeed;
-		turnSpeed = 100;
+		turnSpeed = 60;
 		jumpTime = 0;
 		jumpHeight = cameraHeight;
 		jumpLength = 1;
@@ -79,7 +80,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		objectHeightScale = 200;
 		
 		for(int i = 0; i < 16; i++) {
-			testObject1Model[i] =ImageIO.read(new File("testObj/" + (i + 1) + ".png"));
+			testObject1Model[i] = ImageIO.read(new File("testObj/" + (i + 1) + ".png"));
 		}
 		
 		inputHeightMap = new File("D1.png");
@@ -90,6 +91,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		mapHeight = imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
 		objects = new HashMap();
+		objectRotation = 90;
 		objectMap = new int[mapWidth][mapHeight];
 		colorMap = new int[mapWidth][mapHeight];
 		
@@ -97,10 +99,12 @@ public class VoxelSpaceEngine implements KeyListener {
 			for(int y = 0; y < mapHeight; y++) {
 				heightMap[x][y] = evaluatePixel(imageHeightMap, x, y);
 				if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
-					objects.put((y * mapWidth) + x, new object(testObject1Model));
-					for(int coordX = x; coordX < x + 32; coordX++) {
-						for(int coordY = y; coordY < y + 32; coordY++) {
-							objectMap[coordX][coordY] = (y * mapWidth) + x;
+					objects.put((y * mapWidth) + x, new StaticObject(testObject1Model, objectRotation));
+					for(int coordX = 0; coordX < 32; coordX++) {
+						for(int coordY = 0; coordY < 32; coordY++) {
+							int rotatedX = (int)Math.floor((Math.cos(Math.toRadians(objectRotation)) * coordX) + (-1 * Math.sin(Math.toRadians(objectRotation)) * coordY));
+							int rotatedY = (int)Math.floor((Math.sin(Math.toRadians(objectRotation)) * coordX) + (Math.cos(Math.toRadians(objectRotation)) * coordY));
+							objectMap[rotatedX + x][rotatedY + y] = (y * mapWidth) + x;
 						}
 					}
 				}
@@ -245,25 +249,26 @@ public class VoxelSpaceEngine implements KeyListener {
 				boolean[] objectColumn;
 				if(objectMap[loopedX][loopedY] != 0) {
 					int objectOrigin = objectMap[loopedX][loopedY];
-					int objectOriginX = objectOrigin % mapWidth;
-					int objectOriginY = (int) Math.floor(objectOrigin / mapWidth);
-					int relativePointX = (loopedX - objectOriginX);
-					int relativePointY = (loopedY - objectOriginY);
+					int relativePointX = (loopedX - (objectOrigin % mapWidth));
+					int relativePointY = (int)(loopedY - Math.floor(objectOrigin / mapWidth));
 					objectColumn = objects.get(objectOrigin).getColumn(relativePointX, relativePointY);
 					for(int i = 0; i < 16; i++) {
 						if(objectColumn[i]) {
 							int startHeight = screenHeight - (int)((((posZ + cameraHeight) - (heightMap[loopedX][loopedY] + (i - 0.5))) / layer * objectHeightScale + horizon));
 							int endHeight = screenHeight - (int)((((posZ + cameraHeight) - (heightMap[loopedX][loopedY] + (i + 0.5))) / layer * objectHeightScale + horizon));
+							
+							//fix any boundary issues
 							if(startHeight < yBuffer[column]) startHeight = yBuffer[column];
 							if(endHeight < yBuffer[column]) endHeight = yBuffer[column];
 							if(startHeight > screenHeight) startHeight = screenHeight;
 							else if(startHeight <= 0) startHeight = 1;
 							if(endHeight > screenHeight) endHeight = screenHeight;
 							else if(endHeight <= 0) endHeight = 1;
+							
 							if(endHeight - startHeight > 0) {
 								for(int height = startHeight; height < endHeight; height++) {
 									if(tempFrame[(((screenHeight - height) * screenWidth) + column)] == Color.cyan.getRGB())
-										tempFrame[(((screenHeight - height) * screenWidth) + column)] = new Color(0, 0, ((relativePointY * 16) + relativePointX) / 2).getRGB();
+										tempFrame[(((screenHeight - height) * screenWidth) + column)] = Color.gray.getRGB();
 								}
 							}
 						}
