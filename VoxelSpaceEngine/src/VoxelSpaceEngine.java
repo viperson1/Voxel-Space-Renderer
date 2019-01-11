@@ -1,5 +1,10 @@
+import java.awt.AWTException;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.Robot;
+import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
@@ -30,6 +35,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	double direction;
 	
 	double horizon;
+	int darkLevel;
 	final int drawDist;
 	final double heightScale;
 	final double objectHeightScale;
@@ -91,7 +97,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		mapHeight = imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
 		objects = new HashMap();
-		objectRotation = 90;
+		objectRotation = 30;
 		objectMap = new int[mapWidth][mapHeight];
 		colorMap = new int[mapWidth][mapHeight];
 		
@@ -117,7 +123,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageColorMap = null;
 	}
 	
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, AWTException {
 		VoxelSpaceEngine engine = new VoxelSpaceEngine();
 		JFrame display = new JFrame("Display");
 		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -125,6 +131,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		display.setVisible(true);
 		display.setResizable(false);
 		display.addKeyListener(engine);
+		Robot mouseTransform = new Robot();
 		
 		BufferedImage frame = new BufferedImage(engine.screenWidth, engine.screenHeight, BufferedImage.TYPE_INT_ARGB);
 		
@@ -140,14 +147,22 @@ public class VoxelSpaceEngine implements KeyListener {
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
 			
-			int mousePosX = MouseInfo.getPointerInfo().getLocation().x;
-			int mousePosY = MouseInfo.getPointerInfo().getLocation().y;
+			Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
 			
-			display.getGraphics().drawString(mousePosX + " " + mousePosY, 100, 100);
+			display.setCursor(blankCursor);
+			
+			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
+			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
+			
+			display.getGraphics().drawString("" + (1 / engine.elapsedTime), 100, 100);
 			
 			engine.checkingKeys = true;
 			for(int key : engine.keysPressed) {
 				switch(key) {
+				case KeyEvent.VK_EQUALS:
+					engine.darkLevel += 50 * engine.elapsedTime;
+					if(engine.darkLevel > 100) engine.darkLevel = 0;
+					break;
 				case KeyEvent.VK_UP:
 					engine.horizon += Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.screenHeight / 2) * engine.elapsedTime;
 					if(engine.horizon > engine.screenHeight) engine.horizon = engine.screenHeight;
@@ -161,6 +176,9 @@ public class VoxelSpaceEngine implements KeyListener {
 					break;
 				case KeyEvent.VK_RIGHT:
 					engine.direction -= engine.turnSpeed * engine.elapsedTime;
+					break;
+				case KeyEvent.VK_ESCAPE:
+					running = false;
 					break;
 				case KeyEvent.VK_W:
 					engine.move(1, engine.currentSpeed);
@@ -183,6 +201,11 @@ public class VoxelSpaceEngine implements KeyListener {
 				}
 			}
 			engine.checkingKeys = false;
+			
+			engine.direction -= 0.25 * (mousePosX - (engine.screenWidth / 2));
+			engine.horizon -= (mousePosY - (engine.screenHeight / 2));
+			
+			mouseTransform.mouseMove(display.getLocationOnScreen().x + (engine.screenWidth / 2), display.getLocationOnScreen().y + (engine.screenHeight / 2));
 			
 			//jumping
 			if(engine.jumpTime > 0) {
@@ -211,7 +234,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	int[] renderFrame() {
 		int[] tempFrame = new int[screenWidth * screenHeight];
-		int skyColor = Color.cyan.getRGB();
+		int skyColor = new Color(0, 100 - darkLevel, 200 - darkLevel).getRGB();
 		
 		for(int i = 0; i < screenWidth * screenHeight; i++) tempFrame[i] = skyColor;
 		
@@ -240,9 +263,19 @@ public class VoxelSpaceEngine implements KeyListener {
 				if(heightOnScreen < 0) heightOnScreen = 0;
 				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight;
 				
+				Color mapColor = new Color(colorMap[loopedX][loopedY]);
+				int mapColorRDarkened = (int)(mapColor.getRed() - (darkLevel * 1.2));
+				if(mapColorRDarkened < 0) mapColorRDarkened = 0;
+				int mapColorGDarkened = mapColor.getGreen() - darkLevel;
+				if(mapColorGDarkened < 0) mapColorGDarkened = 0;
+				int mapColorBDarkened = (int)(mapColor.getBlue() - (darkLevel * 0.80));
+				if(mapColorBDarkened < 0) mapColorBDarkened = 0;
+				
+				Color mapColorDarkened = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);
+				
 				for(int row = heightOnScreen; row > yBuffer[column]; row--) {
-					if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == Color.cyan.getRGB())
-						tempFrame[(((screenHeight - row) * screenWidth) + column)] = colorMap[loopedX][loopedY];
+					if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == skyColor)
+						tempFrame[(((screenHeight - row) * screenWidth) + column)] = mapColorDarkened.getRGB();
 				}
 				if(yBuffer[column] < heightOnScreen) yBuffer[column] = heightOnScreen;
 				
@@ -267,7 +300,7 @@ public class VoxelSpaceEngine implements KeyListener {
 							
 							if(endHeight - startHeight > 0) {
 								for(int height = startHeight; height < endHeight; height++) {
-									if(tempFrame[(((screenHeight - height) * screenWidth) + column)] == Color.cyan.getRGB())
+									if(tempFrame[(((screenHeight - height) * screenWidth) + column)] == skyColor)
 										tempFrame[(((screenHeight - height) * screenWidth) + column)] = Color.gray.getRGB();
 								}
 							}
