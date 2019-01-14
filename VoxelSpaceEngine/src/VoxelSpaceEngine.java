@@ -63,12 +63,12 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 800;
-		screenHeight = 600;
+		screenWidth = 640;
+		screenHeight = 360;
 		
 		posX = 0;
 		posY = 0;
-		posZ = 178;
+		posZ = 120;
 		cameraHeight = 16;
 		direction = 90;
 		
@@ -142,7 +142,6 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.screenWidth, engine.screenHeight, engine.renderFrame(), 0, engine.screenWidth);
-			display.getGraphics().drawRect(0, 0, engine.screenWidth, engine.screenHeight);
 			display.getGraphics().drawImage(frame, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
@@ -274,18 +273,18 @@ public class VoxelSpaceEngine implements KeyListener {
 				mapColor = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);*/
 				
 				/*if(heightOnScreen > yBuffer[column]) {
-					tempFrame[(((screenHeight - heightOnScreen) * screenWidth) + column)] = Color.green.getRGB();
+					tempFrame[(((screenHeight - heightOnScreen) * screenWidth) + column)] = Color.cyan.getRGB();
 					if(heightOnScreen < screenHeight && column > 0 && tempFrame[(((screenHeight - heightOnScreen - 1) * screenWidth) + (column - 1))] != Color.green.getRGB()) {
 						if(heightOnScreen > yBuffer[column - 1]) 
 							for(int row = heightOnScreen; row > yBuffer[column - 1]; row--) {
 								if(row < screenHeight) {
-									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.green.getRGB();
+									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.cyan.getRGB();
 								}
 							}
 						else {
 							for(int row = heightOnScreen; row < yBuffer[column - 1]; row++) {
 								if(row < screenHeight) {
-									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.green.getRGB();
+									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.cyan.getRGB();
 								}
 							}
 						}
