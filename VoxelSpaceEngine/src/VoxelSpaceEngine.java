@@ -63,8 +63,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 960;
-		screenHeight = 720;
+		screenWidth = 800;
+		screenHeight = 600;
 		
 		posX = 0;
 		posY = 0;
@@ -81,7 +81,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		jumpLength = 1;
 		
 		horizon = screenHeight / 2;
-		drawDist = 800;
+		drawDist = 600;
 		heightScale = 240;
 		objectHeightScale = 200;
 		
@@ -154,7 +154,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
 			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
 			
-			display.getGraphics().drawString("" + (1 / engine.elapsedTime), 100, 100);
+			display.getGraphics().drawString("" + Math.round(1 / engine.elapsedTime), 100, 100);
 			
 			engine.checkingKeys = true;
 			for(int key : engine.keysPressed) {
@@ -234,7 +234,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	int[] renderFrame() {
 		int[] tempFrame = new int[screenWidth * screenHeight];
-		int skyColor = new Color(0, 100 - darkLevel, 200 - darkLevel).getRGB();
+		int skyColor = Color.gray.getRGB();// = new Color(0, 100 - darkLevel, 200 - darkLevel).getRGB();
 		
 		for(int i = 0; i < screenWidth * screenHeight; i++) tempFrame[i] = skyColor;
 		
@@ -260,26 +260,47 @@ public class VoxelSpaceEngine implements KeyListener {
 				
 				int heightOnScreen = screenHeight - (int)(((posZ + cameraHeight) - heightMap[loopedX][loopedY]) / layer * heightScale + horizon);
 				
-				if(heightOnScreen < 0) heightOnScreen = 0;
-				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight;
+				if(heightOnScreen < 0) heightOnScreen = 1;
+				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight - 1;
 				
 				Color mapColor = new Color(colorMap[loopedX][loopedY]);
-				int mapColorRDarkened = (int)(mapColor.getRed() - (darkLevel * 1.2));
+				/*int mapColorRDarkened = (int)(mapColor.getRed() - (darkLevel * 1.2)); //lighting changing
 				if(mapColorRDarkened < 0) mapColorRDarkened = 0;
 				int mapColorGDarkened = mapColor.getGreen() - darkLevel;
 				if(mapColorGDarkened < 0) mapColorGDarkened = 0;
 				int mapColorBDarkened = (int)(mapColor.getBlue() - (darkLevel * 0.80));
 				if(mapColorBDarkened < 0) mapColorBDarkened = 0;
 				
-				Color mapColorDarkened = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);
+				mapColor = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);*/
+				
+				/*if(heightOnScreen > yBuffer[column]) {
+					tempFrame[(((screenHeight - heightOnScreen) * screenWidth) + column)] = Color.green.getRGB();
+					if(heightOnScreen < screenHeight && column > 0 && tempFrame[(((screenHeight - heightOnScreen - 1) * screenWidth) + (column - 1))] != Color.green.getRGB()) {
+						if(heightOnScreen > yBuffer[column - 1]) 
+							for(int row = heightOnScreen; row > yBuffer[column - 1]; row--) {
+								if(row < screenHeight) {
+									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.green.getRGB();
+								}
+							}
+						else {
+							for(int row = heightOnScreen; row < yBuffer[column - 1]; row++) {
+								if(row < screenHeight) {
+									tempFrame[(((screenHeight - row) * screenWidth) + column)] = Color.green.getRGB();
+								}
+							}
+						}
+					}
+				}*/
+				
+
 				
 				for(int row = heightOnScreen; row > yBuffer[column]; row--) {
 					if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == skyColor)
-						tempFrame[(((screenHeight - row) * screenWidth) + column)] = mapColorDarkened.getRGB();
+						tempFrame[(((screenHeight - row) * screenWidth) + column)] = mapColor.getRGB();
 				}
 				if(yBuffer[column] < heightOnScreen) yBuffer[column] = heightOnScreen;
 				
-				boolean[] objectColumn;
+				/*boolean[] objectColumn; //(object rendering, may lower FPS)
 				if(objectMap[loopedX][loopedY] != 0) {
 					int objectOrigin = objectMap[loopedX][loopedY];
 					int relativePointX = (loopedX - (objectOrigin % mapWidth));
@@ -307,12 +328,13 @@ public class VoxelSpaceEngine implements KeyListener {
 						}
 					}
 				}
-				else objectColumn = null;
+				else objectColumn = null;*/
 				
 				posXLeft += dx;
 				posYLeft += dy;
 			}
-			dZ += 0.01;
+			if(layer < 400) dZ += 0.03;
+			else dZ += 0.25;
 		}
 		return tempFrame;
 	}
