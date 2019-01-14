@@ -1,8 +1,10 @@
 import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Graphics2D;
 import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
@@ -127,7 +129,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		VoxelSpaceEngine engine = new VoxelSpaceEngine();
 		JFrame display = new JFrame("Display");
 		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		display.setSize(engine.screenWidth, engine.screenHeight);
+		display.setSize(engine.screenWidth * 2, engine.screenHeight * 2);
 		display.setVisible(true);
 		display.setResizable(false);
 		display.addKeyListener(engine);
@@ -142,7 +144,11 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.screenWidth, engine.screenHeight, engine.renderFrame(), 0, engine.screenWidth);
-			display.getGraphics().drawImage(frame, 0, 0, null);			
+			BufferedImage frameScaled = new BufferedImage(engine.screenWidth * 2, engine.screenHeight * 2, frame.getType());
+			Graphics2D frameGraphics = frameScaled.createGraphics();
+			frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			frameGraphics.drawImage(frame, 0, 0, engine.screenWidth * 2, engine.screenHeight * 2, 0, 0, engine.screenWidth, engine.screenHeight, null);
+			display.getGraphics().drawImage(frameScaled, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
 			
@@ -332,8 +338,8 @@ public class VoxelSpaceEngine implements KeyListener {
 				posXLeft += dx;
 				posYLeft += dy;
 			}
-			if(layer < 400) dZ += 0.03;
-			else dZ += 0.25;
+			if(layer < 400) dZ += 0.02;
+			else dZ += 0.15;
 		}
 		return tempFrame;
 	}
