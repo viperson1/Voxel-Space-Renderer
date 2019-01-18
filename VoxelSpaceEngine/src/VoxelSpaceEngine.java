@@ -56,17 +56,26 @@ public class VoxelSpaceEngine implements KeyListener {
 	int[][] objectMap;
 	int[][] colorMap;
 	
-	final int screenWidth;
 	final int screenHeight;
+	final int screenWidth;
+	final double renderScale;
+	int renderedScreenWidth;
+	int renderedScreenHeight;
 	
 	double elapsedTime;
 	boolean checkingKeys;
+	final boolean fpsMLook;
 	
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 640;
-		screenHeight = 360;
+		screenWidth = 1280;
+		screenHeight = 720;
+		
+		renderScale = 0.25;
+		
+		renderedScreenWidth = (int)(screenWidth * renderScale);
+		renderedScreenHeight = (int)(screenHeight * renderScale);
 		
 		posX = 0;
 		posY = 0;
@@ -81,10 +90,11 @@ public class VoxelSpaceEngine implements KeyListener {
 		jumpTime = 0;
 		jumpHeight = cameraHeight;
 		jumpLength = 1;
+		fpsMLook = true;
 		
-		horizon = screenHeight / 2;
-		drawDist = 600;
-		heightScale = 240;
+		horizon = renderedScreenHeight / 2;
+		drawDist = 1024;
+		heightScale = 120;
 		objectHeightScale = 200;
 		
 		for(int i = 0; i < 16; i++) {
@@ -129,13 +139,13 @@ public class VoxelSpaceEngine implements KeyListener {
 		VoxelSpaceEngine engine = new VoxelSpaceEngine();
 		JFrame display = new JFrame("Display");
 		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		display.setSize(engine.screenWidth * 2, engine.screenHeight * 2);
+		display.setSize(engine.screenWidth, engine.screenHeight);
 		display.setVisible(true);
 		display.setResizable(false);
 		display.addKeyListener(engine);
 		Robot mouseTransform = new Robot();
 		
-		BufferedImage frame = new BufferedImage(engine.screenWidth, engine.screenHeight, BufferedImage.TYPE_INT_ARGB);
+		BufferedImage frame = new BufferedImage(engine.renderedScreenWidth, engine.renderedScreenHeight, BufferedImage.TYPE_INT_ARGB);
 		
 		boolean running = true;
 		double currentTime = System.currentTimeMillis();
@@ -143,18 +153,18 @@ public class VoxelSpaceEngine implements KeyListener {
 		double originalJumpPosZ = 0;
 		
 		while(running) { //game loop
-			frame.setRGB(0, 0, engine.screenWidth, engine.screenHeight, engine.renderFrame(), 0, engine.screenWidth);
-			BufferedImage frameScaled = new BufferedImage(engine.screenWidth * 2, engine.screenHeight * 2, frame.getType());
+			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
+			BufferedImage frameScaled = new BufferedImage(engine.screenWidth, engine.screenHeight, frame.getType());
 			Graphics2D frameGraphics = frameScaled.createGraphics();
 			frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			frameGraphics.drawImage(frame, 0, 0, engine.screenWidth * 2, engine.screenHeight * 2, 0, 0, engine.screenWidth, engine.screenHeight, null);
+			frameGraphics.drawImage(frame, 0, 0, engine.screenWidth, engine.screenHeight, 0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, null);
 			display.getGraphics().drawImage(frameScaled, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) / 1000);
 			currentTime = System.currentTimeMillis();
 			
-			Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
+			//Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
 			
-			display.setCursor(blankCursor);
+			//display.setCursor(blankCursor);
 			
 			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
 			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
@@ -169,11 +179,11 @@ public class VoxelSpaceEngine implements KeyListener {
 					if(engine.darkLevel > 100) engine.darkLevel = 0;
 					break;
 				case KeyEvent.VK_UP:
-					engine.horizon += Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.screenHeight / 2) * engine.elapsedTime;
-					if(engine.horizon > engine.screenHeight) engine.horizon = engine.screenHeight;
+					engine.horizon += Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.renderedScreenHeight / 2) * engine.elapsedTime;
+					if(engine.horizon > engine.renderedScreenHeight) engine.horizon = engine.renderedScreenHeight;
 					break;
 				case KeyEvent.VK_DOWN:
-					engine.horizon -= Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.screenHeight / 2) * engine.elapsedTime;
+					engine.horizon -= Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.renderedScreenHeight / 2) * engine.elapsedTime;
 					if(engine.horizon < 0) engine.horizon = 0;
 					break;
 				case KeyEvent.VK_LEFT:
@@ -207,10 +217,29 @@ public class VoxelSpaceEngine implements KeyListener {
 			}
 			engine.checkingKeys = false;
 			
-			engine.direction -= 0.25 * (mousePosX - (engine.screenWidth / 2));
-			engine.horizon -= (mousePosY - (engine.screenHeight / 2));
+			double distFromCenter = Math.hypot((engine.screenWidth / 2) - mousePosX, (engine.screenHeight / 2) - mousePosY);
+			double maxDistFromCenter = 200;
 			
-			mouseTransform.mouseMove(display.getLocationOnScreen().x + (engine.screenWidth / 2), display.getLocationOnScreen().y + (engine.screenHeight / 2));
+			double maxDistFromX = ((engine.screenWidth / 2) - mousePosX) * (maxDistFromCenter / distFromCenter);
+			double maxDistFromY = ((engine.screenHeight / 2) - mousePosY) * (maxDistFromCenter / distFromCenter);
+			
+			if(!engine.fpsMLook) {
+				if(distFromCenter > maxDistFromCenter) {
+					engine.direction -= 0.06125 * (mousePosX - ((engine.screenWidth / 2)));
+					engine.horizon -= 0.25 * (mousePosY - ((engine.screenHeight / 2)));
+					mouseTransform.mouseMove((display.getLocationOnScreen().x + (engine.screenWidth / 2)) - (int)maxDistFromX, display.getLocationOnScreen().y + (engine.screenHeight / 2) - (int)maxDistFromY);
+				}
+			}
+			else {
+				engine.direction -= 0.25 * (mousePosX - (engine.screenWidth / 2));
+				engine.horizon -= (mousePosY - (engine.screenHeight / 2));
+				mouseTransform.mouseMove(display.getLocationOnScreen().x + (engine.screenWidth / 2), display.getLocationOnScreen().y + (engine.screenHeight / 2));
+			}
+			
+			if(engine.horizon < 0) engine.horizon = 0;
+			if(engine.horizon > engine.renderedScreenHeight) engine.horizon = engine.renderedScreenHeight;
+			
+			//mouseTransform.mouseMove(display.getLocationOnScreen().x + (engine.screenWidth / 2), display.getLocationOnScreen().y + (engine.screenHeight / 2));
 			
 			//jumping
 			if(engine.jumpTime > 0) {
@@ -238,15 +267,15 @@ public class VoxelSpaceEngine implements KeyListener {
 	}
 	
 	int[] renderFrame() {
-		int[] tempFrame = new int[screenWidth * screenHeight];
-		int skyColor = Color.gray.getRGB();// = new Color(0, 100 - darkLevel, 200 - darkLevel).getRGB();
+		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
+		int skyColor = new Color(0, 100 - darkLevel, 150 - darkLevel).getRGB();
 		
-		for(int i = 0; i < screenWidth * screenHeight; i++) tempFrame[i] = skyColor;
+		for(int i = 0; i < renderedScreenWidth * renderedScreenHeight; i++) tempFrame[i] = skyColor;
 		
 		double sinViewAngle = Math.sin(Math.toRadians(direction));
 		double cosViewAngle = Math.cos(Math.toRadians(direction));
 		
-		int[] yBuffer = new int[screenWidth];
+		int[] yBuffer = new int[renderedScreenWidth];
 		
 		double dZ = 1.0;
 		for(int layer = 1; layer < drawDist; layer += dZ) {
@@ -256,27 +285,27 @@ public class VoxelSpaceEngine implements KeyListener {
 			double posXRight = (cosViewAngle*layer - sinViewAngle*layer) + posX;
 			double posYRight = (-sinViewAngle*layer - cosViewAngle*layer) + posY;
 			
-			double dx = (posXRight - posXLeft) / screenWidth;
-			double dy = (posYRight - posYLeft) / screenWidth;
+			double dx = (posXRight - posXLeft) / renderedScreenWidth;
+			double dy = (posYRight - posYLeft) / renderedScreenWidth;
 			
-			for(int column = 0; column < screenWidth; column++) {
+			for(int column = 0; column < renderedScreenWidth; column++) {
 				int loopedX = (int)(((mapWidth * 4) + posXLeft) % mapWidth);
 				int loopedY = (int)(((mapHeight * 4) + posYLeft) % mapHeight);
 				
-				int heightOnScreen = screenHeight - (int)(((posZ + cameraHeight) - heightMap[loopedX][loopedY]) / layer * heightScale + horizon);
+				int heightOnScreen = renderedScreenHeight - (int)(((posZ + cameraHeight) - heightMap[loopedX][loopedY]) / layer * heightScale + horizon);
 				
 				if(heightOnScreen < 0) heightOnScreen = 1;
-				if(heightOnScreen > screenHeight) heightOnScreen = screenHeight - 1;
+				if(heightOnScreen > renderedScreenHeight) heightOnScreen = renderedScreenHeight - 1;
 				
 				Color mapColor = new Color(colorMap[loopedX][loopedY]);
-				/*int mapColorRDarkened = (int)(mapColor.getRed() - (darkLevel * 1.2)); //lighting changing
+				int mapColorRDarkened = (int)(mapColor.getRed() - (darkLevel * 1.2)); //lighting changing
 				if(mapColorRDarkened < 0) mapColorRDarkened = 0;
 				int mapColorGDarkened = mapColor.getGreen() - darkLevel;
 				if(mapColorGDarkened < 0) mapColorGDarkened = 0;
 				int mapColorBDarkened = (int)(mapColor.getBlue() - (darkLevel * 0.80));
 				if(mapColorBDarkened < 0) mapColorBDarkened = 0;
 				
-				mapColor = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);*/
+				mapColor = new Color(mapColorRDarkened, mapColorGDarkened, mapColorBDarkened);
 				
 				/*if(heightOnScreen > yBuffer[column]) {
 					tempFrame[(((screenHeight - heightOnScreen) * screenWidth) + column)] = Color.cyan.getRGB();
@@ -300,8 +329,8 @@ public class VoxelSpaceEngine implements KeyListener {
 
 				
 				for(int row = heightOnScreen; row > yBuffer[column]; row--) {
-					if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == skyColor)
-						tempFrame[(((screenHeight - row) * screenWidth) + column)] = mapColor.getRGB();
+					//if(tempFrame[(((screenHeight - row) * screenWidth) + column)] == skyColor)
+						tempFrame[(((renderedScreenHeight - row) * renderedScreenWidth) + column)] = mapColor.getRGB();
 				}
 				if(yBuffer[column] < heightOnScreen) yBuffer[column] = heightOnScreen;
 				
