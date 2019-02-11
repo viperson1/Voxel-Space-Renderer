@@ -482,10 +482,12 @@ public class VoxelSpaceEngine implements KeyListener {
 		          side = 1;
 		        }
 				
-				if (side == 0) renderDist = (mapSquare[0] - checkPosX + (1 - stepX) / 2) / rayDir[0];
-			    else renderDist = (mapSquare[1] - checkPosY + (1 - stepY) / 2) / rayDir[1];
+				//if (side == 0) renderDist = (mapSquare[0] - checkPosX + (1 - stepX) / 2) / rayDir[0];
+			    //else renderDist = (mapSquare[1] - checkPosY + (1 - stepY) / 2) / rayDir[1];
 				
-				jumpDist += 0.01;
+				renderDist = Math.hypot(testSquareX - checkPosX, testSquareY - checkPosY);
+				
+				jumpDist += 0.005;
 			}
 			
 		}
