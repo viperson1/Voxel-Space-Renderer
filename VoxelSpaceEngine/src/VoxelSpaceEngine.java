@@ -71,51 +71,51 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 1280;
-		screenHeight = 720;
+		screenWidth = 640;
+		screenHeight = 480;
 		
-		renderScale = 0.25;
+		renderScale = .5;
 		
 		renderedScreenWidth = (int)(screenWidth * renderScale);
 		renderedScreenHeight = (int)(screenHeight * renderScale);
 		
 		horizon = renderedScreenHeight * 0.5;
 		drawDist = 1024;
-		heightScale = 63;
+		heightScale = 240;
 		objectHeightScale = 127;
 		
 		for(int i = 0; i < 16; i++) {
 			testObject1Model[i] = ImageIO.read(new File("testObj/" + (i + 1) + ".png"));
 		}
 		
-		inputHeightMap = new File("D14.png");
+		inputHeightMap = new File("D1.png");
 		imageHeightMap = ImageIO.read(inputHeightMap);
-		inputColorMap = new File("C14.png");
+		inputColorMap = new File("C1W.png");
 		imageColorMap = ImageIO.read(inputColorMap);
 		mapWidth = imageHeightMap.getWidth();
 		mapHeight = imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
-		objects = new HashMap();
+		objects = new HashMap<Integer, StaticObject>();
 		objectRotation = 30;
 		objectMap = new int[mapWidth][mapHeight];
 		colorMap = new int[mapWidth][mapHeight];
 		
 		posX = 512;
 		posY = 512;
-		posZ = 120;
-		cameraHeight = 16;
+		
+		cameraHeight = 0.5;
 		direction = 90;
 		
 		fallingMoveSpeed = 10;
-		moveSpeed = 30;
+		moveSpeed = 6;
 		currentSpeed = moveSpeed;
 		turnSpeed = 60;
 		jumpTime = 0;
 		jumpHeight = cameraHeight;
 		jumpLength = 1;
 		fpsMLook = true;
-		FOV = 90;
-		fovScale = FOV / 90;
+		FOV = 60;
+		fovScale = FOV / 90.0;
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
@@ -142,13 +142,15 @@ public class VoxelSpaceEngine implements KeyListener {
 		inputColorMap = null;
 		imageHeightMap = null;
 		imageColorMap = null;
+		
+		posZ = heightMap[(int)posX][(int)posY];
 	}
 	
 	public static void main(String[] args) throws IOException, AWTException {
 		VoxelSpaceEngine engine = new VoxelSpaceEngine();
 		JFrame display = new JFrame("Display");
 		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		display.setSize(engine.screenWidth, engine.screenHeight);
+		display.setSize(engine.renderedScreenWidth, engine.renderedScreenHeight);
 		display.setVisible(true);
 		display.setResizable(false);
 		display.addKeyListener(engine);
@@ -161,15 +163,13 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		double originalJumpPosZ = 0;
 		
-		int frameNum = 0;
-		
 		while(running) { //game loop
-			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrameColumnFirst(), 0, engine.renderedScreenWidth);
-			BufferedImage frameScaled = new BufferedImage(engine.screenWidth, engine.screenHeight, frame.getType());
-			Graphics2D frameGraphics = frameScaled.createGraphics();
-			frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			frameGraphics.drawImage(frame, 0, 0, engine.screenWidth, engine.screenHeight, 0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, null);
-			display.getGraphics().drawImage(frameScaled, 0, 0, null);			
+			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
+			//BufferedImage frameScaled = new BufferedImage(engine.screenWidth, engine.screenHeight, frame.getType());
+			//Graphics2D frameGraphics = frameScaled.createGraphics();
+			//frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			//frameGraphics.drawImage(frame, 0, 0, engine.screenWidth, engine.screenHeight, 0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, null);
+			display.getGraphics().drawImage(frame, 0, 0, null);			
 			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) * .001);
 			currentTime = System.currentTimeMillis();
 			
@@ -179,8 +179,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
 			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
-			
-			display.getGraphics().drawString("" + Math.round(1 / engine.elapsedTime), 100, 100);
+			System.out.println("" + Math.round(1 / engine.elapsedTime));
 			
 			engine.checkingKeys = true;
 			for(int key : engine.keysPressed) {
@@ -231,7 +230,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			
 			if(!engine.fpsMLook) {
-				double distFromCenter = Math.hypot((engine.screenWidth / 2) - mousePosX, (engine.screenHeight / 2) - mousePosY);
+				double distFromCenter = Math.abs((engine.screenWidth / 2) - mousePosX) + Math.abs((engine.screenHeight / 2) - mousePosY);
 				double maxDistFromCenter = 100;
 				
 				double maxDistFromX = ((engine.screenWidth / 2) - mousePosX) * (maxDistFromCenter / distFromCenter);
@@ -266,7 +265,7 @@ public class VoxelSpaceEngine implements KeyListener {
 				}
 			}
 			else if(engine.jumpTime < 0) engine.jumpTime = 0;
-			
+
 			//gravity and move speed slow while falling
 			if(engine.posZ > (engine.heightMap[(int)engine.posX][(int)engine.posY]) && engine.jumpTime == 0) {
 				engine.posZ -= ((engine.cameraHeight / 2) * 10) * engine.elapsedTime;
@@ -281,7 +280,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		}
 	}
 	
-	int[] renderFrame() {
+	int[] renderFrameByLayer() {
 		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
 		int skyColor = new Color(0, 100 - darkLevel, 150 - darkLevel).getRGB();
 		
@@ -389,7 +388,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		return tempFrame;
 	}
 	
-	int[] renderFrameColumnFirst() {
+	int[] renderFrame() {
 		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
 		int skyColor = new Color(0, 100 - darkLevel, 150 - darkLevel).getRGB();
 		
@@ -398,7 +397,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		double dirVectorX = -Math.sin(Math.toRadians(direction));
 		double dirVectorY = -Math.cos(Math.toRadians(direction));
 		
-		double[] dir = new double[] {dirVectorX, dirVectorY}; //direction vector, index 0 = x, index 1 = y
+		//double[] dir = new double[] {dirVectorX, dirVectorY}; //direction vector, index 0 = x, index 1 = y
 		double[] cameraPlaneRight = new double[] {dirVectorX + fovScale * Math.cos(Math.toRadians(direction)), dirVectorY - fovScale * Math.sin(Math.toRadians(direction))}; //camera plane distance from the direction vector, if Y is the same as direction vector there will be a 90 degree FOV
 		double[] cameraPlaneLeft = new double[] {dirVectorX - fovScale * Math.cos(Math.toRadians(direction)), dirVectorY + fovScale * Math.sin(Math.toRadians(direction))};		
 		
@@ -406,6 +405,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			double[] rayDir = new double[] {(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
 			
 			int yBuffer = 0;
+			int heightBuffer = 0;
 			
 			double checkPosX = posX;
 			double checkPosY = posY;
@@ -413,6 +413,8 @@ public class VoxelSpaceEngine implements KeyListener {
 			double renderDist = 0;
 			
 			boolean inBounds = true;
+			
+			boolean quickCheck = false;
 			
 			//which box of the map we're in
 		    int[] mapSquare = new int[] {(int)(checkPosX), (int)(checkPosY)};
@@ -431,7 +433,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		    int stepX;
 		    int stepY;
 		    
-		    int side;
+		    int side = 1;
 		    
 		    if(rayDir[0] < 0) {
 		    	stepX = -1;
@@ -452,40 +454,51 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 		    //increase check position to next intersection with grid lines	
 			while(inBounds) {
-				int testSquareX = (mapSquare[0] >> (int)Math.floor(jumpDist) - 1) << (int)Math.floor(jumpDist) - 1;
-				int testSquareY = (mapSquare[1] >> (int)Math.floor(jumpDist) - 1) << (int)Math.floor(jumpDist) - 1;
+				for(int i = 0; i < 1 << (int)(jumpDist - 1); i++) {
+					if (sideDistX < sideDistY) {
+			          sideDistX += deltaDistX;
+			          mapSquare[0] += stepX;
+			          side = 0;
+			        }
+			        else {
+			          sideDistY += deltaDistY;
+			          mapSquare[1] += stepY;
+			          side = 1;
+			        }
+				}
+				
+				int testSquareX = (mapSquare[0] >> ((int)(jumpDist) - 1)) << ((int)(jumpDist) - 1);
+				int testSquareY = (mapSquare[1] >> ((int)(jumpDist) - 1)) << ((int)(jumpDist) - 1);
+				
+				if (side == 0) {
+					renderDist = ((testSquareX - checkPosX) + ((1 - (stepX)) * 0.5)) / rayDir[0];
+				}
+				else {
+					renderDist = ((testSquareY - checkPosY) + ((1 - (stepY)) * 0.5)) / rayDir[1];
+				}
 				
 				if(testSquareX >= 0 && testSquareX < mapWidth && testSquareY >= 0 && testSquareY < mapWidth) {
-					int heightOnScreen = renderedScreenHeight - (int)(((posZ + cameraHeight) - heightMap[testSquareX][testSquareY]) / renderDist * heightScale + horizon);
-					Color mapColor = new Color(colorMap[testSquareX][testSquareY]);
-					
-					if(heightOnScreen > renderedScreenHeight) heightOnScreen = renderedScreenHeight;
-					else if(heightOnScreen <= 0) heightOnScreen = 1; 
-					
-					if(heightOnScreen > yBuffer) {
+					if(!quickCheck || heightMap[testSquareX][testSquareY] > heightBuffer) {
+						int heightOnScreen = renderedScreenHeight - (int)(((posZ + cameraHeight) - heightMap[testSquareX][testSquareY]) / renderDist * heightScale + horizon);
+						Color mapColor = new Color(colorMap[testSquareX][testSquareY]);
+						
+						if(heightOnScreen > renderedScreenHeight) {
+							heightOnScreen = renderedScreenHeight;
+							inBounds = false;
+						}
+						else if(heightOnScreen < yBuffer) {
+							continue;
+						}
+						
 						for(int row = heightOnScreen; row > yBuffer; row--) {
 								tempFrame[(((renderedScreenHeight - row) * renderedScreenWidth) + column)] = mapColor.getRGB();
 						}
-						yBuffer = heightOnScreen;
+							yBuffer = heightOnScreen;
+						heightBuffer = heightMap[testSquareX][testSquareY];
+						quickCheck = quickCheck || heightOnScreen > renderedScreenHeight - horizon;
 					}
 				}
 				else inBounds = false;
-				
-				if (sideDistX < sideDistY) {
-		          sideDistX += deltaDistX * (1 << (int)Math.floor(jumpDist) - 1);
-		          mapSquare[0] += stepX << ((int)Math.floor(jumpDist) - 1);
-		          side = 0;
-		        }
-		        else {
-		          sideDistY += deltaDistY * (1 << (int)Math.floor(jumpDist) - 1);
-		          mapSquare[1] += stepY << ((int)Math.floor(jumpDist) - 1);
-		          side = 1;
-		        }
-				
-				//if (side == 0) renderDist = (mapSquare[0] - checkPosX + (1 - stepX) / 2) / rayDir[0];
-			    //else renderDist = (mapSquare[1] - checkPosY + (1 - stepY) / 2) / rayDir[1];
-				
-				renderDist = Math.hypot(testSquareX - checkPosX, testSquareY - checkPosY);
 				
 				jumpDist += 0.005;
 			}
