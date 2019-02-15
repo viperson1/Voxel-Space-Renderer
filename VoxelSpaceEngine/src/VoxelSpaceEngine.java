@@ -39,8 +39,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	double horizon;
 	int darkLevel;
 	final int drawDist;
-	final double heightScale;
-	final double objectHeightScale;
+	double heightScale;
+	double objectHeightScale;
 	
 	KeyListener input;
 	
@@ -71,17 +71,17 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 640;
+		screenWidth = 1280;
 		screenHeight = 480;
 		
-		renderScale = .5;
+		renderScale = 1;
 		
 		renderedScreenWidth = (int)(screenWidth * renderScale);
 		renderedScreenHeight = (int)(screenHeight * renderScale);
 		
 		horizon = renderedScreenHeight * 0.5;
 		drawDist = 1024;
-		heightScale = 240;
+		heightScale = 255;
 		objectHeightScale = 127;
 		
 		for(int i = 0; i < 16; i++) {
@@ -103,18 +103,18 @@ public class VoxelSpaceEngine implements KeyListener {
 		posX = 512;
 		posY = 512;
 		
-		cameraHeight = 0.5;
+		cameraHeight = 8;
 		direction = 90;
 		
-		fallingMoveSpeed = 10;
-		moveSpeed = 6;
+		fallingMoveSpeed = 40;
+		moveSpeed = 60;
 		currentSpeed = moveSpeed;
-		turnSpeed = 60;
+		turnSpeed = 100;
 		jumpTime = 0;
-		jumpHeight = cameraHeight;
+		jumpHeight = cameraHeight * 5;
 		jumpLength = 1;
 		fpsMLook = true;
-		FOV = 60;
+		FOV = 360;
 		fovScale = FOV / 90.0;
 		
 		for(int x = 0; x < mapWidth; x++) {
@@ -159,19 +159,21 @@ public class VoxelSpaceEngine implements KeyListener {
 		BufferedImage frame = new BufferedImage(engine.renderedScreenWidth, engine.renderedScreenHeight, BufferedImage.TYPE_INT_ARGB);
 		
 		boolean running = true;
-		double currentTime = System.currentTimeMillis();
+		double currentTime = System.nanoTime();
 		
 		double originalJumpPosZ = 0;
 		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
+			frame.getGraphics().drawString("" + Math.round(1 / engine.elapsedTime), 100, 100);
+			
 			//BufferedImage frameScaled = new BufferedImage(engine.screenWidth, engine.screenHeight, frame.getType());
 			//Graphics2D frameGraphics = frameScaled.createGraphics();
 			//frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 			//frameGraphics.drawImage(frame, 0, 0, engine.screenWidth, engine.screenHeight, 0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, null);
 			display.getGraphics().drawImage(frame, 0, 0, null);			
-			engine.elapsedTime = ((System.currentTimeMillis() - currentTime) * .001);
-			currentTime = System.currentTimeMillis();
+			engine.elapsedTime = ((System.nanoTime() - currentTime) * .000000001);
+			currentTime = System.nanoTime();
 			
 			//Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
 			
@@ -179,7 +181,7 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
 			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
-			System.out.println("" + Math.round(1 / engine.elapsedTime));
+			
 			
 			engine.checkingKeys = true;
 			for(int key : engine.keysPressed) {
@@ -394,15 +396,17 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		for(int i = 0; i < renderedScreenWidth * renderedScreenHeight; i++) tempFrame[i] = skyColor;
 		
-		double dirVectorX = -Math.sin(Math.toRadians(direction));
-		double dirVectorY = -Math.cos(Math.toRadians(direction));
+		//double dirVectorX = -Math.sin(Math.toRadians(direction));
+		//double dirVectorY = -Math.cos(Math.toRadians(direction));
 		
 		//double[] dir = new double[] {dirVectorX, dirVectorY}; //direction vector, index 0 = x, index 1 = y
-		double[] cameraPlaneRight = new double[] {dirVectorX + fovScale * Math.cos(Math.toRadians(direction)), dirVectorY - fovScale * Math.sin(Math.toRadians(direction))}; //camera plane distance from the direction vector, if Y is the same as direction vector there will be a 90 degree FOV
-		double[] cameraPlaneLeft = new double[] {dirVectorX - fovScale * Math.cos(Math.toRadians(direction)), dirVectorY + fovScale * Math.sin(Math.toRadians(direction))};		
+		//double[] cameraPlaneRight = new double[] {dirVectorX + fovScale * Math.cos(Math.toRadians(direction)), dirVectorY - fovScale * Math.sin(Math.toRadians(direction))}; //camera plane distance from the direction vector, if Y is the same as direction vector there will be a 90 degree FOV
+		//double[] cameraPlaneLeft = new double[] {dirVectorX - fovScale * Math.cos(Math.toRadians(direction)), dirVectorY + fovScale * Math.sin(Math.toRadians(direction))};		
 		
 		for(int column = 0; column < renderedScreenWidth; column++) {
-			double[] rayDir = new double[] {(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
+			double rayDeg = ((((double)column / (double)renderedScreenWidth) * ((direction - (FOV * 0.5)) - (direction + (FOV * 0.5)))) + (direction + (FOV / 2)));
+			
+			double[] rayDir = new double[] {-Math.sin(Math.toRadians(rayDeg)), -Math.cos(Math.toRadians(rayDeg))};//{(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
 			
 			int yBuffer = 0;
 			int heightBuffer = 0;
@@ -470,11 +474,21 @@ public class VoxelSpaceEngine implements KeyListener {
 				int testSquareX = (mapSquare[0] >> ((int)(jumpDist) - 1)) << ((int)(jumpDist) - 1);
 				int testSquareY = (mapSquare[1] >> ((int)(jumpDist) - 1)) << ((int)(jumpDist) - 1);
 				
-				if (side == 0) {
-					renderDist = ((testSquareX - checkPosX) + ((1 - (stepX)) * 0.5)) / rayDir[0];
+				if(quickCheck || renderDist > 75) {
+					if (side == 0) {
+						renderDist = ((testSquareX - checkPosX) + ((1 - (stepX)) * 0.5)) / rayDir[0];
+					}
+					else {
+						renderDist = ((testSquareY - checkPosY) + ((1 - (stepY)) * 0.5)) / rayDir[1];
+					}
 				}
 				else {
-					renderDist = ((testSquareY - checkPosY) + ((1 - (stepY)) * 0.5)) / rayDir[1];
+					double distX = Math.abs(testSquareX - checkPosX);
+					double distY = Math.abs(testSquareY - checkPosY);
+					if(distY > distX) {
+						renderDist = ((0.41 * distX) + (0.941246 * distY));
+					}
+					else renderDist = ((0.41 * distY) + (0.941246 * distX));
 				}
 				
 				if(testSquareX >= 0 && testSquareX < mapWidth && testSquareY >= 0 && testSquareY < mapWidth) {
@@ -500,7 +514,7 @@ public class VoxelSpaceEngine implements KeyListener {
 				}
 				else inBounds = false;
 				
-				jumpDist += 0.005;
+				jumpDist += .01;
 			}
 			
 		}
