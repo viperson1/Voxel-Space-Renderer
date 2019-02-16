@@ -71,8 +71,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 1280;
-		screenHeight = 480;
+		screenWidth = 640;
+		screenHeight = 360;
 		
 		renderScale = 1;
 		
@@ -81,16 +81,16 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		horizon = renderedScreenHeight * 0.5;
 		drawDist = 1024;
-		heightScale = 255;
+		heightScale = 127;
 		objectHeightScale = 127;
 		
-		for(int i = 0; i < 16; i++) {
-			testObject1Model[i] = ImageIO.read(new File("testObj/" + (i + 1) + ".png"));
-		}
+		//for(int i = 0; i < 16; i++) {
+		//	testObject1Model[i] = ImageIO.read(new File("testObj/" + (i + 1) + ".png"));
+		//}
 		
-		inputHeightMap = new File("D1.png");
+		inputHeightMap = new File("Maps/D20.png");
 		imageHeightMap = ImageIO.read(inputHeightMap);
-		inputColorMap = new File("C1W.png");
+		inputColorMap = new File("Maps/C20W.png");
 		imageColorMap = ImageIO.read(inputColorMap);
 		mapWidth = imageHeightMap.getWidth();
 		mapHeight = imageHeightMap.getHeight();
@@ -111,10 +111,10 @@ public class VoxelSpaceEngine implements KeyListener {
 		currentSpeed = moveSpeed;
 		turnSpeed = 100;
 		jumpTime = 0;
-		jumpHeight = cameraHeight * 5;
+		jumpHeight = cameraHeight * 2;
 		jumpLength = 1;
 		fpsMLook = true;
-		FOV = 360;
+		FOV = 90;
 		fovScale = FOV / 90.0;
 		
 		for(int x = 0; x < mapWidth; x++) {
@@ -143,7 +143,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = null;
 		imageColorMap = null;
 		
-		posZ = heightMap[(int)posX][(int)posY];
+		posZ = 255;
 	}
 	
 	public static void main(String[] args) throws IOException, AWTException {
@@ -163,21 +163,33 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		double originalJumpPosZ = 0;
 		
+		int frameNum = 0;
+		
+		double countingElapsedTime = 0;
+		double avgFPS = 0;
+		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
-			frame.getGraphics().drawString("" + Math.round(1 / engine.elapsedTime), 100, 100);
+			frame.getGraphics().drawString("" + Math.round(1 / (avgFPS)), 100, 100);
 			
-			//BufferedImage frameScaled = new BufferedImage(engine.screenWidth, engine.screenHeight, frame.getType());
-			//Graphics2D frameGraphics = frameScaled.createGraphics();
-			//frameGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			//frameGraphics.drawImage(frame, 0, 0, engine.screenWidth, engine.screenHeight, 0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, null);
+			if(frameNum == 60) {
+				avgFPS = countingElapsedTime / 60;
+				countingElapsedTime = 0;
+				frameNum = 0;
+			}
+			
+			frameNum++;
+			
 			display.getGraphics().drawImage(frame, 0, 0, null);			
 			engine.elapsedTime = ((System.nanoTime() - currentTime) * .000000001);
+			
+			countingElapsedTime += engine.elapsedTime;
+			
 			currentTime = System.nanoTime();
 			
-			//Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
+			Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
 			
-			//display.setCursor(blankCursor);
+			display.setCursor(blankCursor);
 			
 			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
 			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
