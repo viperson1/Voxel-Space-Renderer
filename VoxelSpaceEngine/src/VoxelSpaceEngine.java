@@ -69,7 +69,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 1280;
+		screenWidth = 640;
 		screenHeight = 480;
 		
 		renderScale = 1;
@@ -90,8 +90,8 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = ImageIO.read(inputHeightMap);
 		inputColorMap = new File("Maps/C1W.png");
 		imageColorMap = ImageIO.read(inputColorMap);
-		mapWidth = imageHeightMap.getWidth();
-		mapHeight = imageHeightMap.getHeight();
+		mapWidth = 4096;//imageHeightMap.getWidth();
+		mapHeight = 4096;//imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
 		objects = new HashMap<Integer, StaticObject>();
 		objectRotation = 30;
@@ -101,11 +101,11 @@ public class VoxelSpaceEngine implements KeyListener {
 		posX = mapWidth / 2;
 		posY = mapHeight / 2;
 		
-		cameraHeight = 32;
+		cameraHeight = 8;
 		direction = 90;
 		
 		fallingMoveSpeed = 40;
-		moveSpeed = 60;
+		moveSpeed = 120;
 		currentSpeed = moveSpeed;
 		turnSpeed = 100;
 		jumpTime = 0;
@@ -115,9 +115,12 @@ public class VoxelSpaceEngine implements KeyListener {
 		FOV = 90;
 		fovScale = FOV / 90.0;
 		
+		DiamondSquare test = new DiamondSquare();
+		int[][] testMap = test.genMap(mapWidth + 1);
+		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
-				heightMap[x][y] = evaluatePixel(imageHeightMap, x % mapWidth, y % mapHeight);
+				heightMap[x][y] = testMap[x][y];//evaluatePixel(imageHeightMap, x % mapWidth, y % mapHeight);
 				/*if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
 					objects.put((y * mapWidth) + x, new StaticObject(testObject1Model, objectRotation));
 					for(int coordX = 0; coordX < 32; coordX++) {
@@ -128,7 +131,8 @@ public class VoxelSpaceEngine implements KeyListener {
 						}
 					}
 				}*/
-				colorMap[x][y] = imageColorMap.getRGB(x, y);
+				
+				colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
 				
 				//if(Math.random() * 100 < 5) {
 					//heightMap[x][y] += 2;
@@ -499,10 +503,10 @@ public class VoxelSpaceEngine implements KeyListener {
 					//}
 					//else renderDist = ((0.41 * distY) + (0.941246 * distX));
 					renderDist = Math.sqrt(distX * distX + distY * distY);
-					if(side == 0) {
-						renderDist += Math.sin(Math.toRadians(90 - rayDeg));
+					/*(if(side == 0) {
+						renderDist -= Math.sin(Math.toRadians(90.0 - rayDeg));
 					}
-					else renderDist += Math.cos(Math.toRadians(90 - rayDeg));
+					else renderDist -= Math.cos(Math.toRadians(90.0 - rayDeg));*/
 				}
 				
 				double relDir = rayDeg - direction;
