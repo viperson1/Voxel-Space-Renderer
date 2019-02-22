@@ -111,7 +111,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		posX = mapWidth / 2;
 		posY = mapHeight / 2;
 		
-		cameraHeight = 8;
+		cameraHeight = 256;
 		direction = 90;
 		
 		fallingMoveSpeed = 40;
@@ -126,7 +126,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		fovScale = FOV / 90.0;
 		
 		DiamondSquare test = new DiamondSquare();
-		int[][] testMap = test.genMap(mapWidth + 1);
+		int[][] testMap = test.genMap(mapWidth + 1, smoothNoise.genRandomNoise(mapWidth + 1));
 		//testMap = test.gaussianSmooth(testMap);
 		
 		for(int x = 0; x < mapWidth; x++) {
@@ -156,7 +156,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = null;
 		imageColorMap = null;
 		
-		posZ = heightMap[(int)posX][(int)posY] + 50;
+		posZ = 1000;
 	}
 	
 	public static void main(String[] args) throws IOException, AWTException {
