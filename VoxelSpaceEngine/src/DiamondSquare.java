@@ -12,7 +12,7 @@ public class DiamondSquare {
 				System.out.printf("%4d", map[x][y]);
 			}
 			System.out.print("\n");
-		}
+		}	
 		
 	}
 	
@@ -116,5 +116,47 @@ public class DiamondSquare {
 		int average = (map[top[0]][top[1]] + map[right[0]][right[1]] + map[left[0]][left[1]] + map[bot[0]][bot[1]]) / 4;
 		
 		return average + (random * 8);
+	}
+	
+	public int[][] gaussianSmooth(int[][] map) {
+		int[][] smoothedMap = new int[map.length][map.length];
+		
+		double[][] kernel = {
+				{1,1,1,1,1},
+				{1,1,1,1,1},
+				{1,1,1,1,1},
+				{1,1,1,1,1},
+				{1,1,1,1,1}
+		};
+		/*{
+		}
+				{0.003765,	0.015019,	0.023792,	0.015019,	0.003765},
+				{0.015019,	0.059912,	0.094907,	0.059912,	0.015019},
+				{0.023792,	0.094907,	0.150342,	0.094907,	0.023792},
+				{0.015019,	0.059912,	0.094907,	0.059912,	0.015019},
+				{0.003765,	0.015019,	0.023792,	0.015019,	0.003765}
+		};*/
+				
+				
+				
+		for(int x = 0; x < map.length - 1; x++) 
+			for(int y = 0; y < map.length - 1; y++) {
+				double totalKernel = 0;
+				double sum = 0;
+			
+				for(int xRel = x - 2; xRel < x + 3; xRel++) {
+					for(int yRel = y - 2; yRel < y + 3; yRel++) {
+						if(xRel > 0 && xRel < map.length - 2 && yRel > 0 && yRel < map.length - 2) {
+							sum += map[xRel][yRel] * kernel[xRel - x + 2][yRel - y + 2];
+							totalKernel += kernel[xRel - x + 2][yRel - y + 2];
+						}
+					}
+				}
+				
+				smoothedMap[x][y] = (int)(sum / totalKernel);
+			}
+			
+		
+		return smoothedMap;
 	}
 }

@@ -46,6 +46,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	File inputColorMap;
 	BufferedImage imageHeightMap;
 	BufferedImage imageColorMap;
+	BufferedImage skyBoxImage;
 	int mapWidth;
 	int mapHeight;
 	int[][] heightMap;
@@ -53,6 +54,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	int objectRotation;
 	int[][] objectMap;
 	int[][] colorMap;
+	int[][] skyBox;
 	
 	final int screenHeight;
 	final int screenWidth;
@@ -66,7 +68,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	boolean checkingKeys;
 	final boolean fpsMLook;
 	
-	static BufferedImage[] testObject1Model = new BufferedImage[16];
+	//static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
 		screenWidth = 640;
@@ -90,6 +92,14 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = ImageIO.read(inputHeightMap);
 		inputColorMap = new File("Maps/C1W.png");
 		imageColorMap = ImageIO.read(inputColorMap);
+		skyBoxImage = ImageIO.read(new File("skybox.png"));
+		skyBox = new int[360 * 3][skyBoxImage.getHeight()];
+		for(int x = 0; x < 360 * 3; x++) {
+			for(int y = 0; y < skyBoxImage.getHeight(); y++) {
+				skyBox[x][y] = skyBoxImage.getRGB((int)(x * (skyBoxImage.getWidth() / (360.0 * 3))), y);
+			}
+		}
+		skyBoxImage = null;
 		mapWidth = 4096;//imageHeightMap.getWidth();
 		mapHeight = 4096;//imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
@@ -105,7 +115,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		direction = 90;
 		
 		fallingMoveSpeed = 40;
-		moveSpeed = 120;
+		moveSpeed = 60;
 		currentSpeed = moveSpeed;
 		turnSpeed = 100;
 		jumpTime = 0;
@@ -117,6 +127,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		DiamondSquare test = new DiamondSquare();
 		int[][] testMap = test.genMap(mapWidth + 1);
+		//testMap = test.gaussianSmooth(testMap);
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
@@ -145,7 +156,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = null;
 		imageColorMap = null;
 		
-		posZ = 255;
+		posZ = heightMap[(int)posX][(int)posY] + 50;
 	}
 	
 	public static void main(String[] args) throws IOException, AWTException {
@@ -182,7 +193,8 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			frameNum++;
 			
-			display.getGraphics().drawImage(frame, 0, 0, null);			
+			display.getGraphics().drawImage(frame, 0, 0, null);
+			
 			engine.elapsedTime = ((System.nanoTime() - currentTime) * .000000001);
 			
 			countingElapsedTime += engine.elapsedTime;
@@ -406,9 +418,6 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	int[] renderFrame() {
 		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
-		int skyColor = new Color(0, 100, 150).getRGB();
-		
-		for(int i = 0; i < renderedScreenWidth * renderedScreenHeight; i++) tempFrame[i] = skyColor;
 		
 		//double dirVectorX = -Math.sin(Math.toRadians(direction));
 		//double dirVectorY = -Math.cos(Math.toRadians(direction));
@@ -419,6 +428,9 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		for(int column = 0; column < renderedScreenWidth; column++) {
 			double rayDeg = ((((double)column / (double)renderedScreenWidth) * ((direction - (FOV * 0.5)) - (direction + (FOV * 0.5)))) + (direction + (FOV * 0.5)));
+			if(rayDeg < 0) rayDeg += 360;
+			if(rayDeg >= 360) rayDeg -= 360;
+			
 			
 			double[] rayDir = new double[] {-Math.sin(Math.toRadians(rayDeg)), -Math.cos(Math.toRadians(rayDeg))};
 										//{(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
@@ -469,7 +481,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		    }
 			
 		    //increase check position to next intersection with grid lines	
-			while(inBounds && renderDist < 2 * mapWidth) {
+			while(inBounds) {
 				for(int i = 0; i < (1 << (jumpDist - 1)); i++) {
 					if (sideDistX < sideDistY) {
 			          sideDistX += deltaDistX;
@@ -481,33 +493,30 @@ public class VoxelSpaceEngine implements KeyListener {
 			          mapSquare[1] += stepY;
 			          side = 1;
 			        }
+					if(++jumpCount == 300 && jumpDist < 5) {
+						jumpDist++;
+						jumpCount = 0;
+					}
 				}
 				
 				int testSquareX = ((mapSquare[0]) >> ((jumpDist) - 1)) << (jumpDist - 1);
 				int testSquareY = ((mapSquare[1]) >> ((jumpDist) - 1)) << (jumpDist - 1);
 				
-				if(quickCheck || renderDist > 75) {
+				/*if(quickCheck || renderDist > 75) {
 					if (side == 0) {
-						renderDist = ((testSquareX - posX) + ((1 - stepX) * 0.5)) / rayDir[0];
+						renderDist = ((testSquareX - (int)posX) + ((1 - stepX) * 0.5)) / rayDir[0];
 					}
 					else {
-						renderDist = ((testSquareY - posY) + ((1 - stepY) * 0.5)) / rayDir[1];
+						renderDist = ((testSquareY - (int)posY) + ((1 - stepY) * 0.5)) / rayDir[1];
 					}
 				}
-				else {
+				else {*/
 					double distX = testSquareX - posX;
 					double distY = testSquareY - posY;
 					
-					//if(distY > distX) {
-					//	renderDist = ((0.41 * distX) + (0.941246 * distY));
-					//}
-					//else renderDist = ((0.41 * distY) + (0.941246 * distX));
+					
 					renderDist = Math.sqrt(distX * distX + distY * distY);
-					/*(if(side == 0) {
-						renderDist -= Math.sin(Math.toRadians(90.0 - rayDeg));
-					}
-					else renderDist -= Math.cos(Math.toRadians(90.0 - rayDeg));*/
-				}
+				//}
 				
 				double relDir = rayDeg - direction;
 				if((relDir < 45 && relDir > -45) || (relDir < -135 || relDir > 135)) renderDist *= Math.cos(Math.toRadians(relDir));
@@ -537,14 +546,10 @@ public class VoxelSpaceEngine implements KeyListener {
 					}
 				}
 				else inBounds = false;
-				
-				if(++jumpCount == 150) {
-					jumpDist++;
-					jumpCount = 0;
-				}
-				
 			}
-			
+			for(int i = renderedScreenHeight - 1; i > yBuffer; i--) {
+				tempFrame[((renderedScreenHeight - i) * renderedScreenWidth) + column] = skyBox[(int)Math.floor(rayDeg * 3)][(skyBox[0].length / 2) + (int)((renderedScreenHeight - horizon) - i)];
+			}
 		}
 		return tempFrame;
 	}
@@ -588,7 +593,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		if(posZ < heightMap[(int)posX][(int)posY]) {
 			posZ = heightMap[(int)posX][(int)posY];
-			if(posZ - lastPosZ > cameraHeight / 4) {
+			if(posZ - lastPosZ > cameraHeight / 2) {
 				if(moveDirection == 2 || moveDirection == 4) {
 					move(moveDirection - 1, speed);
 				}
