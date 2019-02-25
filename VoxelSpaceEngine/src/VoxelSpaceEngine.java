@@ -72,7 +72,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	
 	VoxelSpaceEngine() throws IOException {
 		screenWidth = 640;
-		screenHeight = 480;
+		screenHeight = 360;
 		
 		renderScale = 1;
 		
@@ -100,18 +100,18 @@ public class VoxelSpaceEngine implements KeyListener {
 			}
 		}
 		skyBoxImage = null;
-		mapWidth = 4096;//imageHeightMap.getWidth();
-		mapHeight = 4096;//imageHeightMap.getHeight();
+		mapWidth = 2048;//imageHeightMap.getWidth();
+		mapHeight = 2048;//imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
 		objects = new HashMap<Integer, StaticObject>();
 		objectRotation = 30;
 		objectMap = new int[mapWidth][mapHeight];
 		colorMap = new int[mapWidth][mapHeight];
 		
-		posX = mapWidth / 2;
-		posY = mapHeight / 2;
+		posX = (mapWidth  / 2) + 100;
+		posY = (mapHeight / 2) + 100;
 		
-		cameraHeight = 256;
+		cameraHeight = 8;
 		direction = 90;
 		
 		fallingMoveSpeed = 40;
@@ -126,12 +126,14 @@ public class VoxelSpaceEngine implements KeyListener {
 		fovScale = FOV / 90.0;
 		
 		DiamondSquare test = new DiamondSquare();
-		int[][] testMap = test.genMap(mapWidth + 1, smoothNoise.genRandomNoise(mapWidth + 1));
-		//testMap = test.gaussianSmooth(testMap);
+		double[][] testColorMap = smoothNoise.genRandomNoise(mapWidth);
+		
+		int[][] testMap = test.genMap(mapWidth + 1, testColorMap);
+		testMap = test.gaussianSmooth(testMap);
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
-				heightMap[x][y] = testMap[x][y];//evaluatePixel(imageHeightMap, x % mapWidth, y % mapHeight);
+				heightMap[x][y] = testMap[x][y];//evaluatePixel(imageHeightMap, x % 1024, y % 1024);
 				/*if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
 					objects.put((y * mapWidth) + x, new StaticObject(testObject1Model, objectRotation));
 					for(int coordX = 0; coordX < 32; coordX++) {
@@ -143,7 +145,12 @@ public class VoxelSpaceEngine implements KeyListener {
 					}
 				}*/
 				
-				colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
+				int colorVal = (int)(smoothNoise.getSmoothNoise(testColorMap, x, y, 256) * 8);
+				if(colorVal > 255) colorVal = 255;
+				else if(colorVal < 0) colorVal = 0;
+				
+				colorMap[x][y] = new Color(colorVal, colorVal, colorVal).getRGB();
+				//colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
 				
 				//if(Math.random() * 100 < 5) {
 					//heightMap[x][y] += 2;
@@ -156,7 +163,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = null;
 		imageColorMap = null;
 		
-		posZ = 1000;
+		posZ = heightMap[(int)posX][(int)posY] + 500;
 	}
 	
 	public static void main(String[] args) throws IOException, AWTException {
@@ -180,6 +187,9 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		double countingElapsedTime = 0;
 		double avgFPS = 0;
+		
+		double fallSpeed = 9.8;
+		double fallAccel = 9.8;
 		
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
@@ -296,11 +306,16 @@ public class VoxelSpaceEngine implements KeyListener {
 
 			//gravity and move speed slow while falling
 			if(engine.posZ > (engine.heightMap[(int)engine.posX][(int)engine.posY]) && engine.jumpTime == 0) {
-				engine.posZ -= ((engine.cameraHeight)) * engine.elapsedTime;
+				engine.posZ -= ((fallSpeed) * (engine.cameraHeight * 0.5)) * engine.elapsedTime;
 				if(engine.currentSpeed > engine.fallingMoveSpeed) {
 					engine.currentSpeed -= (engine.moveSpeed - engine.fallingMoveSpeed) * 0.02; // 0.02 = 1 / 50, 50 is falling speed
 				}
-				if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
+				if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) {
+					engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
+					fallSpeed = 9.8;
+				}
+				
+				fallSpeed += fallAccel * engine.elapsedTime;
 			}
 			else if(engine.currentSpeed != engine.moveSpeed) {
 				engine.currentSpeed = engine.moveSpeed;

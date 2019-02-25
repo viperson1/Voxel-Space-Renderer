@@ -5,11 +5,11 @@ public class DiamondSquare {
 		
 		int sideLength = 65;
 		
-		int[][] map = test.genMap(sideLength, smoothNoise.genRandomNoise(sideLength));
+		double[][] map = smoothNoise.genRandomNoise(sideLength);//test.genMap(sideLength, smoothNoise.genRandomNoise(sideLength));
 		
 		for(int x = 0; x < sideLength; x++) {
 			for(int y = 0; y < sideLength; y++) {
-				System.out.printf("%4d", map[x][y]);
+				System.out.printf("%4d", (int)smoothNoise.getSmoothNoisePixel(map, x, y));
 			}
 			System.out.print("\n");
 		}	
@@ -17,21 +17,25 @@ public class DiamondSquare {
 	}
 	
 	public int[][] genMap(int sideLength, double[][] noiseMap) {
+		int noiseScale = 256;
+		
 		if(sideLength % 2 == 0) sideLength++;
 		
 		int[][] baseMap = new int[sideLength][sideLength];
 		
-		int randomScale = 255;
+		double randomScale = 4;
 		
 		//initialize first four corners
-		baseMap[0][0] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, 0, 64) * randomScale);
-		baseMap[sideLength - 1][0] = (int) (smoothNoise.getSmoothNoise(noiseMap, sideLength - 1, 0, 64) * randomScale);
-		baseMap[0][sideLength - 1] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, sideLength - 1, 64) * randomScale);
-		baseMap[sideLength - 1][sideLength - 1] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, 0, 64) * randomScale);
+		baseMap[0][0] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, 0, noiseScale) * randomScale);
+		baseMap[sideLength - 1][0] = (int) (smoothNoise.getSmoothNoise(noiseMap, sideLength - 1, 0, noiseScale) * randomScale);
+		baseMap[0][sideLength - 1] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, sideLength - 1, noiseScale) * randomScale);
+		baseMap[sideLength - 1][sideLength - 1] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, 0, noiseScale) * randomScale);
 		
 		int step = sideLength - 1;
 		
 		boolean isSquareStep = true; //operator to do at step, true = square step, false = diamond step
+		
+		randomScale *= .625;
 		
 		while(step > 1) {
 			int halfStep = step / 2;
@@ -39,19 +43,19 @@ public class DiamondSquare {
 			if(isSquareStep) {
 				for(int x = halfStep; x < sideLength - 1; x += step) {
 					for(int y = halfStep; y < sideLength - 1; y += step) {
-						baseMap[x][y] = (int) (squareStep(baseMap, x, y, step, (int)smoothNoise.getSmoothNoise(noiseMap, x, y, 64)) * randomScale);
+						baseMap[x][y] = (int) (squareStep(baseMap, x, y, step, (int) (int)((smoothNoise.getSmoothNoise(noiseMap, x, y, noiseScale)) * randomScale)));
 					}
 				}
 			}
 			else {
 				for (int y = 0; y < sideLength - 1; y += step) {
 					for (int x = 0; x < sideLength - 1; x += step) {
-						baseMap[x + halfStep][y] = (int) (diamondStep(baseMap, x + halfStep, y, step, (int)smoothNoise.getSmoothNoise(noiseMap, x + halfStep, y, 64)) * randomScale);
-						baseMap[x][y + halfStep] = (int) (diamondStep(baseMap, x, y + halfStep, step, (int)smoothNoise.getSmoothNoise(noiseMap, x, y + halfStep, 64)) * randomScale);
+						baseMap[x + halfStep][y] = (int) (diamondStep(baseMap, x + halfStep, y, step, (int) ((int)(smoothNoise.getSmoothNoise(noiseMap, x + halfStep, y, noiseScale)) * randomScale)));
+						baseMap[x][y + halfStep] = (int) (diamondStep(baseMap, x, y + halfStep, step, (int) ((int)(smoothNoise.getSmoothNoise(noiseMap, x, y + halfStep, noiseScale)) * randomScale)));
 					}
 				}
 				step /= 2;
-				randomScale /= 2;
+				randomScale *= .75;
 			}
 			
 			isSquareStep = !isSquareStep;
@@ -122,20 +126,12 @@ public class DiamondSquare {
 		int[][] smoothedMap = new int[map.length][map.length];
 		
 		double[][] kernel = {
-				{1,1,1,1,1},
-				{1,1,1,1,1},
-				{1,1,1,1,1},
-				{1,1,1,1,1},
-				{1,1,1,1,1}
-		};
-		/*{
-		}
 				{0.003765,	0.015019,	0.023792,	0.015019,	0.003765},
 				{0.015019,	0.059912,	0.094907,	0.059912,	0.015019},
 				{0.023792,	0.094907,	0.150342,	0.094907,	0.023792},
 				{0.015019,	0.059912,	0.094907,	0.059912,	0.015019},
 				{0.003765,	0.015019,	0.023792,	0.015019,	0.003765}
-		};*/
+		};
 				
 				
 				
