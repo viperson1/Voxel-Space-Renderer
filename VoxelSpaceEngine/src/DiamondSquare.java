@@ -9,7 +9,7 @@ public class DiamondSquare {
 		
 		for(int x = 0; x < sideLength; x++) {
 			for(int y = 0; y < sideLength; y++) {
-				System.out.printf("%4d", (int)smoothNoise.getSmoothNoisePixel(map, x, y));
+				System.out.printf("%4d", (int)(smoothNoise.getSmoothNoisePixel(map, x, y) * 8));
 			}
 			System.out.print("\n");
 		}	
@@ -17,13 +17,13 @@ public class DiamondSquare {
 	}
 	
 	public int[][] genMap(int sideLength, double[][] noiseMap) {
-		int noiseScale = 256;
+		int noiseScale = 1024;
 		
 		if(sideLength % 2 == 0) sideLength++;
 		
 		int[][] baseMap = new int[sideLength][sideLength];
 		
-		double randomScale = 4;
+		double randomScale = 32;
 		
 		//initialize first four corners
 		baseMap[0][0] = (int) (smoothNoise.getSmoothNoise(noiseMap, 0, 0, noiseScale) * randomScale);
@@ -93,7 +93,7 @@ public class DiamondSquare {
 		
 		int average = Math.abs(map[topLeft[0]][topLeft[1]] + map[topRight[0]][topRight[1]] + map[botLeft[0]][botLeft[1]] + map[botRight[0]][botRight[1]]) / 4;
 		
-		return average + (random * 8);
+		return average + (random);
 	}
 	
 	public int diamondStep(int[][] map, int x, int y, int step, int random) {
@@ -119,7 +119,7 @@ public class DiamondSquare {
 		
 		int average = (map[top[0]][top[1]] + map[right[0]][right[1]] + map[left[0]][left[1]] + map[bot[0]][bot[1]]) / 4;
 		
-		return average + (random * 8);
+		return average + (random);
 	}
 	
 	public int[][] gaussianSmooth(int[][] map) {

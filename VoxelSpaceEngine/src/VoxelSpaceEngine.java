@@ -18,8 +18,6 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 
 public class VoxelSpaceEngine implements KeyListener {
-	
-	
 	double posX;
 	double posY;
 	double posZ;
@@ -71,8 +69,8 @@ public class VoxelSpaceEngine implements KeyListener {
 	//static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
 	VoxelSpaceEngine() throws IOException {
-		screenWidth = 640;
-		screenHeight = 360;
+		screenWidth = 360;
+		screenHeight = 200;
 		
 		renderScale = 1;
 		
@@ -100,8 +98,8 @@ public class VoxelSpaceEngine implements KeyListener {
 			}
 		}
 		skyBoxImage = null;
-		mapWidth = 2048;//imageHeightMap.getWidth();
-		mapHeight = 2048;//imageHeightMap.getHeight();
+		mapWidth = 4096;//imageHeightMap.getWidth();
+		mapHeight = 4096;//imageHeightMap.getHeight();
 		heightMap = new int[mapWidth][mapHeight];
 		objects = new HashMap<Integer, StaticObject>();
 		objectRotation = 30;
@@ -111,7 +109,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		posX = (mapWidth  / 2) + 100;
 		posY = (mapHeight / 2) + 100;
 		
-		cameraHeight = 8;
+		cameraHeight = 16;
 		direction = 90;
 		
 		fallingMoveSpeed = 40;
@@ -125,15 +123,16 @@ public class VoxelSpaceEngine implements KeyListener {
 		FOV = 90;
 		fovScale = FOV / 90.0;
 		
-		DiamondSquare test = new DiamondSquare();
-		double[][] testColorMap = smoothNoise.genRandomNoise(mapWidth);
+		//DiamondSquare test = new DiamondSquare();
+		//double[][] testColorMap = smoothNoise.genRandomNoise(mapWidth);
 		
-		int[][] testMap = test.genMap(mapWidth + 1, testColorMap);
-		testMap = test.gaussianSmooth(testMap);
+		//int[][] testMap = test.genMap(mapWidth + 1, testColorMap);
+		//testMap = test.gaussianSmooth(testMap);
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
-				heightMap[x][y] = testMap[x][y];//evaluatePixel(imageHeightMap, x % 1024, y % 1024);
+				heightMap[x][y] = /*(testMap[x][y]) - 1000;*/evaluatePixel(imageHeightMap, x % 1024, y % 1024);
+				
 				/*if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
 					objects.put((y * mapWidth) + x, new StaticObject(testObject1Model, objectRotation));
 					for(int coordX = 0; coordX < 32; coordX++) {
@@ -145,17 +144,31 @@ public class VoxelSpaceEngine implements KeyListener {
 					}
 				}*/
 				
-				int colorVal = (int)(smoothNoise.getSmoothNoise(testColorMap, x, y, 256) * 8);
-				if(colorVal > 255) colorVal = 255;
-				else if(colorVal < 0) colorVal = 0;
 				
-				colorMap[x][y] = new Color(colorVal, colorVal, colorVal).getRGB();
-				//colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
 				
-				//if(Math.random() * 100 < 5) {
-					//heightMap[x][y] += 2;
-					//colorMap[x][y] = new Color(90, 140, 50).getRGB();
-				//}
+				
+				/*if(heightMap[x][y] < -32 + smoothNoise.getSmoothNoise(testColorMap, x, y, 32)) {
+					double val = smoothNoise.getSmoothNoise(testColorMap, x, y, 32);
+					
+					heightMap[x][y] = (int)(val) - 32;
+					int colorValR = (int)lerp(0, 142, (val - 2) / 24);
+					if(colorValR > 255) colorValR = 255;
+					else if(colorValR < 0) colorValR = 0;
+					int colorValG = (int)lerp(33, 157, (val - 2) / 24);
+					if(colorValG > 255) colorValG = 255;
+					else if(colorValG < 33) colorValG = 33;
+					
+					colorMap[x][y] = new Color(colorValR, colorValG, 255).getRGB();
+				}
+				else {
+					int colorVal = (int)(smoothNoise.getSmoothNoise(testColorMap, x, y, 32) * 8);
+					if(colorVal > 255) colorVal = 255;
+					else if(colorVal < 0) colorVal = 0;
+					
+					colorMap[x][y] = new Color(colorVal, colorVal, colorVal).getRGB();
+				}*/
+				
+				colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
 			}
 		}
 		inputHeightMap = null;
@@ -194,6 +207,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		while(running) { //game loop
 			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
 			frame.getGraphics().drawString("" + Math.round(1 / (avgFPS)), 100, 100);
+			frame.getGraphics().drawString(String.format("X %.2f Y %.2f Z %.2f ", engine.posX, engine.posY, engine.posZ), 100, 130);
 			
 			if(frameNum == 60) {
 				avgFPS = countingElapsedTime / 60;
@@ -266,24 +280,25 @@ public class VoxelSpaceEngine implements KeyListener {
 			engine.checkingKeys = false;
 			
 			
-			
-			if(!engine.fpsMLook) {
-				double distFromCenter = Math.abs((engine.screenWidth / 2) - mousePosX) + Math.abs((engine.screenHeight / 2) - mousePosY);
-				double maxDistFromCenter = 100;
-				
-				double maxDistFromX = ((engine.screenWidth / 2) - mousePosX) * (maxDistFromCenter / distFromCenter);
-				double maxDistFromY = ((engine.screenHeight / 2) - mousePosY) * (maxDistFromCenter / distFromCenter);
-				
-				if(distFromCenter > maxDistFromCenter) {
-					engine.direction -= 0.06125 * (mousePosX - (((engine.screenWidth / 2)) - maxDistFromX));
-					engine.horizon -= 0.25 * (mousePosY - (((engine.screenHeight / 2)) - maxDistFromY));
-					mouseTransform.mouseMove((display.getLocationOnScreen().x + (engine.screenWidth / 2)) - (int)maxDistFromX, display.getLocationOnScreen().y + (engine.screenHeight / 2) - (int)maxDistFromY);
+			if(display.isFocused()) {
+				if(!engine.fpsMLook) {
+					double distFromCenter = Math.abs((engine.screenWidth / 2) - mousePosX) + Math.abs((engine.screenHeight / 2) - mousePosY);
+					double maxDistFromCenter = 100;
+					
+					double maxDistFromX = ((engine.screenWidth / 2) - mousePosX) * (maxDistFromCenter / distFromCenter);
+					double maxDistFromY = ((engine.screenHeight / 2) - mousePosY) * (maxDistFromCenter / distFromCenter);
+					
+					if(distFromCenter > maxDistFromCenter) {
+						engine.direction -= 0.06125 * (mousePosX - (((engine.screenWidth / 2)) - maxDistFromX));
+						engine.horizon -= 0.25 * (mousePosY - (((engine.screenHeight / 2)) - maxDistFromY));
+						mouseTransform.mouseMove((display.getLocationOnScreen().x + (engine.screenWidth / 2)) - (int)maxDistFromX, display.getLocationOnScreen().y + (engine.screenHeight / 2) - (int)maxDistFromY);
+					}
 				}
-			}
-			else {
-				engine.direction -= 0.25 * (mousePosX - (engine.screenWidth * .5));
-				engine.horizon -= (mousePosY - (engine.screenHeight * .5));
-				mouseTransform.mouseMove((int)(display.getLocationOnScreen().x + (engine.screenWidth * .5)), (int)(display.getLocationOnScreen().y + (engine.screenHeight * .5)));
+				else {
+					engine.direction -= 0.25 * (mousePosX - (engine.screenWidth * .5));
+					engine.horizon -= (mousePosY - (engine.screenHeight * .5));
+					mouseTransform.mouseMove((int)(display.getLocationOnScreen().x + (engine.screenWidth * .5)), (int)(display.getLocationOnScreen().y + (engine.screenHeight * .5)));
+				}
 			}
 			
 			if(engine.horizon < 0) engine.horizon = 0;
@@ -434,13 +449,6 @@ public class VoxelSpaceEngine implements KeyListener {
 	int[] renderFrame() {
 		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
 		
-		//double dirVectorX = -Math.sin(Math.toRadians(direction));
-		//double dirVectorY = -Math.cos(Math.toRadians(direction));
-		
-		//double[] dir = new double[] {dirVectorX, dirVectorY}; //direction vector, index 0 = x, index 1 = y
-		//double[] cameraPlaneRight = new double[] {dirVectorX + fovScale * Math.cos(Math.toRadians(direction)), dirVectorY - fovScale * Math.sin(Math.toRadians(direction))}; //camera plane distance from the direction vector, if Y is the same as direction vector there will be a 90 degree FOV
-		//double[] cameraPlaneLeft = new double[] {dirVectorX - fovScale * Math.cos(Math.toRadians(direction)), dirVectorY + fovScale * Math.sin(Math.toRadians(direction))};		
-		
 		for(int column = 0; column < renderedScreenWidth; column++) {
 			double rayDeg = ((((double)column / (double)renderedScreenWidth) * ((direction - (FOV * 0.5)) - (direction + (FOV * 0.5)))) + (direction + (FOV * 0.5)));
 			if(rayDeg < 0) rayDeg += 360;
@@ -448,7 +456,6 @@ public class VoxelSpaceEngine implements KeyListener {
 			
 			
 			double[] rayDir = new double[] {-Math.sin(Math.toRadians(rayDeg)), -Math.cos(Math.toRadians(rayDeg))};
-										//{(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
 			
 			int yBuffer = 0;
 			int heightBuffer = 0;
@@ -633,5 +640,9 @@ public class VoxelSpaceEngine implements KeyListener {
 	public void keyTyped(KeyEvent e) {
 		// TODO Auto-generated method stub
 		
+	}
+	
+	public double lerp(double p1, double p2, double t) {
+		return p1 - ((p1 - p2) * t);
 	}
 }
