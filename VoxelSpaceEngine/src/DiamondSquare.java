@@ -35,10 +35,8 @@ public class DiamondSquare {
 		
 		boolean isSquareStep = true; //operator to do at step, true = square step, false = diamond step
 		
-		randomScale *= .625;
-		
 		while(step > 1) {
-			int halfStep = step / 2;
+			int halfStep = (int)Math.ceil(step / 2.0);
 			
 			if(isSquareStep) {
 				for(int x = halfStep; x < sideLength - 1; x += step) {
@@ -50,11 +48,11 @@ public class DiamondSquare {
 			else {
 				for (int y = 0; y < sideLength - 1; y += step) {
 					for (int x = 0; x < sideLength - 1; x += step) {
-						baseMap[x + halfStep][y] = (int) (diamondStep(baseMap, x + halfStep, y, step, (int) ((int)(smoothNoise.getSmoothNoise(noiseMap, x + halfStep, y, noiseScale)) * randomScale)));
-						baseMap[x][y + halfStep] = (int) (diamondStep(baseMap, x, y + halfStep, step, (int) ((int)(smoothNoise.getSmoothNoise(noiseMap, x, y + halfStep, noiseScale)) * randomScale)));
+						baseMap[x + halfStep][y] = (int) (diamondStep(baseMap, x + halfStep, y, step, (int) (smoothNoise.getSmoothNoise(noiseMap, x + halfStep, y, noiseScale) * randomScale)));
+						baseMap[x][y + halfStep] = (int) (diamondStep(baseMap, x, y + halfStep, step, (int) (smoothNoise.getSmoothNoise(noiseMap, x, y + halfStep, noiseScale) * randomScale)));
 					}
 				}
-				step /= 2;
+				step = (int)Math.ceil(step / 2.0);
 				randomScale *= .75;
 			}
 			
@@ -72,7 +70,7 @@ public class DiamondSquare {
 		 * bl			br
 		 */
 		
-		int halfStep = step / 2;
+		int halfStep = (int)Math.ceil(step / 2);
 		
 		int[] topLeft = {x - halfStep, y - halfStep};
 		int[] topRight = {x + halfStep, y - halfStep};
@@ -99,10 +97,12 @@ public class DiamondSquare {
 	public int diamondStep(int[][] map, int x, int y, int step, int random) {
 		//x, y center of diamond
 		
-		int[] right = {x + (step / 2), y};
-		int[] bot = {x, y + (step / 2)};
-		int[] top = {x, y - (step / 2)};
-		int[] left = {x - (step / 2), y};
+		int halfStep = (int)Math.ceil(step / 2);
+		
+		int[] right = {x + halfStep, y};
+		int[] bot = {x, y + halfStep};
+		int[] top = {x, y - halfStep};
+		int[] left = {x - halfStep, y};
 		
 		//loop around, first line makes sure x or y are not negative, second line loops the values
 		top[0] += map.length; top[1] += map[0].length;

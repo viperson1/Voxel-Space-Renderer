@@ -14,7 +14,7 @@ public class smoothNoise {
 		int[] buffer = new int[512 * 512];
 		for(int x = 0; x < 512; x++) {
 			for(int y = 0; y < 512; y++) {
-				double val = getSmoothNoise(noise, x, y, 16) * 8.0;
+				double val = getSmoothNoise(noise, x, y, 256) * 8.0;
 				
 				if(val > 255) val = 255;
 				if(val < 0) val = 0;

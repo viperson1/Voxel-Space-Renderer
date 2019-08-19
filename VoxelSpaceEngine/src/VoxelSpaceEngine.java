@@ -1,43 +1,79 @@
+import static org.lwjgl.glfw.GLFW.GLFW_CURSOR;
+import static org.lwjgl.glfw.GLFW.GLFW_CURSOR_DISABLED;
+import static org.lwjgl.glfw.GLFW.GLFW_DOUBLEBUFFER;
+import static org.lwjgl.glfw.GLFW.GLFW_FALSE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_A;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_D;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_S;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_W;
+import static org.lwjgl.glfw.GLFW.GLFW_PRESS;
+import static org.lwjgl.glfw.GLFW.GLFW_SAMPLES;
+import static org.lwjgl.glfw.GLFW.GLFW_VISIBLE;
+import static org.lwjgl.glfw.GLFW.glfwCreateWindow;
+import static org.lwjgl.glfw.GLFW.glfwGetCursorPos;
+import static org.lwjgl.glfw.GLFW.glfwGetKey;
+import static org.lwjgl.glfw.GLFW.glfwGetPrimaryMonitor;
+import static org.lwjgl.glfw.GLFW.glfwGetVideoMode;
+import static org.lwjgl.glfw.GLFW.glfwInit;
+import static org.lwjgl.glfw.GLFW.glfwMakeContextCurrent;
+import static org.lwjgl.glfw.GLFW.glfwPollEvents;
+import static org.lwjgl.glfw.GLFW.glfwSetCursorPos;
+import static org.lwjgl.glfw.GLFW.glfwSetInputMode;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowPos;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowShouldClose;
+import static org.lwjgl.glfw.GLFW.glfwSetWindowTitle;
+import static org.lwjgl.glfw.GLFW.glfwShowWindow;
+import static org.lwjgl.glfw.GLFW.glfwTerminate;
+import static org.lwjgl.glfw.GLFW.glfwWindowHint;
+import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
+import static org.lwjgl.opengl.GL11.*;
+
 import java.awt.AWTException;
 import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.MouseInfo;
-import java.awt.Point;
-import java.awt.Robot;
-import java.awt.Toolkit;
-import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.DoubleBuffer;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.imageio.ImageIO;
-import javax.swing.JFrame;
 
-public class VoxelSpaceEngine implements KeyListener {
+import org.lwjgl.BufferUtils;
+import org.lwjgl.glfw.GLFWVidMode;
+import org.lwjgl.opencl.CL;
+import org.lwjgl.opengl.GL;
+
+public class VoxelSpaceEngine {
 	
 	
-	double posX;
-	double posY;
-	double posZ;
-	final double cameraHeight;
+	float posX;
+	float posY;
+	float posZ;
+	float cameraPosX;
+	float cameraPosY;
+	float cameraPosZ;
+	double cameraDistance;
+	final float cameraHeight;
 	final double moveSpeed;
 	double currentSpeed;
 	final double fallingMoveSpeed;
+	double fallSpeed;
+	double fallAccel;
 	final double turnSpeed;
 	double jumpTime;
 	final double jumpHeight;
 	final double jumpLength;
+	double originalJumpPosZ;
 	
-	double direction;
+	float direction;
 	
-	double horizon;
+	float horizon;
 	int darkLevel;
 	final int drawDist;
-	double heightScale;
+	float heightScale;
 	double objectHeightScale;
 	
 	KeyListener input;
@@ -49,7 +85,7 @@ public class VoxelSpaceEngine implements KeyListener {
 	BufferedImage skyBoxImage;
 	int mapWidth;
 	int mapHeight;
-	int[][] heightMap;
+	short[][] heightMap;
 	HashMap<Integer, StaticObject> objects;
 	int objectRotation;
 	int[][] objectMap;
@@ -68,20 +104,31 @@ public class VoxelSpaceEngine implements KeyListener {
 	boolean checkingKeys;
 	final boolean fpsMLook;
 	
+	int mousePosX;
+	int mousePosY;
+	
+	boolean running;
+	
+	float recipScreenWidth;
+	float recipScreenHeight;
+	
+	//Robot mouseTransform;
+	//JFrame display;
+	
 	//static BufferedImage[] testObject1Model = new BufferedImage[16];
 	
-	VoxelSpaceEngine() throws IOException {
-		screenWidth = 640;
-		screenHeight = 360;
+	VoxelSpaceEngine() throws IOException, AWTException {
+		screenWidth = 1366;
+		screenHeight = 734;
 		
 		renderScale = 1;
 		
 		renderedScreenWidth = (int)(screenWidth * renderScale);
 		renderedScreenHeight = (int)(screenHeight * renderScale);
 		
-		horizon = renderedScreenHeight * 0.5;
-		drawDist = 1024;
-		heightScale = 255;
+		horizon = renderedScreenHeight * 0.5f;
+		drawDist = 512;
+		heightScale = 512;
 		objectHeightScale = 127;
 		
 		//for(int i = 0; i < 16; i++) {
@@ -102,7 +149,7 @@ public class VoxelSpaceEngine implements KeyListener {
 		skyBoxImage = null;
 		mapWidth = 2048;//imageHeightMap.getWidth();
 		mapHeight = 2048;//imageHeightMap.getHeight();
-		heightMap = new int[mapWidth][mapHeight];
+		heightMap = new short[mapWidth * 2][mapHeight * 2];
 		objects = new HashMap<Integer, StaticObject>();
 		objectRotation = 30;
 		objectMap = new int[mapWidth][mapHeight];
@@ -110,30 +157,40 @@ public class VoxelSpaceEngine implements KeyListener {
 		
 		posX = (mapWidth  / 2) + 100;
 		posY = (mapHeight / 2) + 100;
+		cameraPosX = 0;
+		cameraPosY = 0;
+		cameraPosZ = 0;
 		
-		cameraHeight = 8;
+		cameraHeight = 32;
 		direction = 90;
+		
+		cameraDistance = 1.5*cameraHeight;
 		
 		fallingMoveSpeed = 40;
 		moveSpeed = 60;
 		currentSpeed = moveSpeed;
+		fallSpeed = 9.8;
+		fallAccel = 9.8;
 		turnSpeed = 100;
 		jumpTime = 0;
 		jumpHeight = cameraHeight * 0.5;
 		jumpLength = 1;
 		fpsMLook = true;
-		FOV = 90;
+		FOV = 80;
 		fovScale = FOV / 90.0;
 		
-		DiamondSquare test = new DiamondSquare();
-		double[][] testColorMap = smoothNoise.genRandomNoise(mapWidth);
+		//mouseTransform = new Robot();
 		
-		int[][] testMap = test.genMap(mapWidth + 1, testColorMap);
-		testMap = test.gaussianSmooth(testMap);
+		//DiamondSquare test = new DiamondSquare();
+		//double[][] testColorMap = smoothNoise.genRandomNoise(mapWidth);
+		
+		//int[][] testMap = test.genMap(mapWidth + 1, smoothNoise.genRandomNoise(mapWidth / 2 + 1));
+		//testMap = test.gaussianSmooth(testMap);
 		
 		for(int x = 0; x < mapWidth; x++) {
 			for(int y = 0; y < mapHeight; y++) {
-				heightMap[x][y] = testMap[x][y];//evaluatePixel(imageHeightMap, x % 1024, y % 1024);
+				//heightMap[x][y] = testMap[x / 2][y / 2] / 2;
+				heightMap[x][y] = evaluatePixel(imageHeightMap, x % 1024, y % 1024);
 				/*if(new Color(imageHeightMap.getRGB(x, y)).getGreen() != 0 && objectMap[x][y] == 0) {
 					objects.put((y * mapWidth) + x, new StaticObject(testObject1Model, objectRotation));
 					for(int coordX = 0; coordX < 32; coordX++) {
@@ -144,13 +201,12 @@ public class VoxelSpaceEngine implements KeyListener {
 						}
 					}
 				}*/
+				//int colorVal = (int)(smoothNoise.getSmoothNoise(testColorMap, x, y, 32) * 8);
+				//if(colorVal > 255) colorVal = 255;
+				//else if(colorVal < 0) colorVal = 0;
 				
-				int colorVal = (int)(smoothNoise.getSmoothNoise(testColorMap, x, y, 256) * 8);
-				if(colorVal > 255) colorVal = 255;
-				else if(colorVal < 0) colorVal = 0;
-				
-				colorMap[x][y] = new Color(colorVal, colorVal, colorVal).getRGB();
-				//colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
+				//colorMap[x][y] = new Color(colorVal, colorVal, colorVal).getRGB();
+				colorMap[x][y] = imageColorMap.getRGB(x % 1024, y % 1024);
 				
 				//if(Math.random() * 100 < 5) {
 					//heightMap[x][y] += 2;
@@ -163,163 +219,147 @@ public class VoxelSpaceEngine implements KeyListener {
 		imageHeightMap = null;
 		imageColorMap = null;
 		
-		posZ = heightMap[(int)posX][(int)posY] + 500;
+		//heightMap = test.gaussianSmooth(heightMap);
+		
+		posZ = heightMap[(int)posX][(int)posY];
+		
+		recipScreenWidth  = 2f / renderedScreenWidth;
+		recipScreenHeight = 2f / renderedScreenHeight;
 	}
+	
+	long window;
+	
+	int frameNum = 0;
 	
 	public static void main(String[] args) throws IOException, AWTException {
 		VoxelSpaceEngine engine = new VoxelSpaceEngine();
-		JFrame display = new JFrame("Display");
-		display.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		display.setSize(engine.renderedScreenWidth, engine.renderedScreenHeight);
-		display.setVisible(true);
-		display.setResizable(false);
-		display.addKeyListener(engine);
-		Robot mouseTransform = new Robot();
+
+		engine.init();
 		
-		BufferedImage frame = new BufferedImage(engine.renderedScreenWidth, engine.renderedScreenHeight, BufferedImage.TYPE_INT_ARGB);
-		
-		boolean running = true;
 		double currentTime = System.nanoTime();
 		
-		double originalJumpPosZ = 0;
 		
-		int frameNum = 0;
 		
-		double countingElapsedTime = 0;
-		double avgFPS = 0;
-		
-		double fallSpeed = 9.8;
-		double fallAccel = 9.8;
-		
-		while(running) { //game loop
-			frame.setRGB(0, 0, engine.renderedScreenWidth, engine.renderedScreenHeight, engine.renderFrame(), 0, engine.renderedScreenWidth);
-			frame.getGraphics().drawString("" + Math.round(1 / (avgFPS)), 100, 100);
-			
-			if(frameNum == 60) {
-				avgFPS = countingElapsedTime / 60;
-				countingElapsedTime = 0;
-				frameNum = 0;
-			}
-			
-			frameNum++;
-			
-			display.getGraphics().drawImage(frame, 0, 0, null);
-			
+		while(!glfwWindowShouldClose(engine.window)) {
 			engine.elapsedTime = ((System.nanoTime() - currentTime) * .000000001);
-			
-			countingElapsedTime += engine.elapsedTime;
-			
 			currentTime = System.nanoTime();
 			
-			Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), new Point(0, 0), "blank cursor");
+			engine.frameNum++;
 			
-			display.setCursor(blankCursor);
+			if(engine.frameNum == 30) {
+				glfwSetWindowTitle(engine.window, "Game Window | FPS: " +  (1 / engine.elapsedTime));
+				engine.frameNum = 0;
+			}
 			
-			int mousePosX = MouseInfo.getPointerInfo().getLocation().x - display.getLocationOnScreen().x;
-			int mousePosY = MouseInfo.getPointerInfo().getLocation().y - display.getLocationOnScreen().y;
+			glfwPollEvents();
 			
+			//glClearColor(0, 100f * 0.00392156862f, 150f * 0.00392156862f, 0);
 			
-			engine.checkingKeys = true;
-			for(int key : engine.keysPressed) {
-				switch(key) {
-				/*case KeyEvent.VK_EQUALS:
-					engine.darkLevel += 50 * engine.elapsedTime;
-					if(engine.darkLevel > 100) engine.darkLevel = 0;
-					break;
-				case KeyEvent.VK_UP:
-					engine.horizon += Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.renderedScreenHeight / 2) * engine.elapsedTime;
-					if(engine.horizon > engine.renderedScreenHeight) engine.horizon = engine.renderedScreenHeight;
-					break;
-				case KeyEvent.VK_DOWN:
-					engine.horizon -= Math.tan(Math.toRadians(engine.turnSpeed)) * (engine.renderedScreenHeight / 2) * engine.elapsedTime;
-					if(engine.horizon < 0) engine.horizon = 0;
-					break;
-				case KeyEvent.VK_LEFT:
-					engine.direction += engine.turnSpeed * engine.elapsedTime;
-					break;
-				case KeyEvent.VK_RIGHT:
-					engine.direction -= engine.turnSpeed * engine.elapsedTime;
-					break;*/
-				case KeyEvent.VK_ESCAPE:
-					running = false;
-					break;
-				case KeyEvent.VK_W:
-					engine.move(1, engine.currentSpeed);
-					break;
-				case KeyEvent.VK_S:
-					engine.move(2, engine.currentSpeed);	
-					break;
-				case KeyEvent.VK_A:
-					engine.move(3, engine.currentSpeed);
-					break;
-				case KeyEvent.VK_D:
-					engine.move(4, engine.currentSpeed);
-					break;
-				case KeyEvent.VK_SPACE:
-					if(engine.jumpTime == 0 && engine.posZ == engine.heightMap[(int)engine.posX][(int)engine.posY]) {
-						originalJumpPosZ = (int) engine.posZ;
-						engine.jumpTime = engine.jumpLength;
-					}
-					break;
+			//glClear(GL_COLOR_BUFFER_BIT);
+			
+			engine.gameUpdate();
+			
+			engine.renderFrame();
+			
+			glFlush();
+			
+			//glfwSwapBuffers(engine.window);
+		}
+		
+		glfwTerminate();
+	}
+	
+	void init() {
+		if(!glfwInit()) {
+			throw new IllegalStateException("Failed to initialize GLFW");
+		}
+		
+		glfwWindowHint(GLFW_SAMPLES, 4);
+		glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
+		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+		window = glfwCreateWindow(renderedScreenWidth, renderedScreenHeight, "Window", 0, 0);
+		
+		if(window == 0) {
+			throw new IllegalStateException("Failed to create window");
+		}
+		
+		GLFWVidMode videoMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		glfwSetWindowPos(window, (videoMode.width() - renderedScreenWidth) / 2, (videoMode.height() - renderedScreenHeight) / 2 );
+		
+		glfwShowWindow(window);
+		
+		glfwMakeContextCurrent(window);
+		GL.createCapabilities();
+		
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	}
+	
+	void gameUpdate() {
+		//set camera position;
+		cameraPosZ = posZ; //- (((engine.horizon / engine.renderedScreenHeight) - .5) * (engine.heightScale / 48));
+		cameraPosX = posX; //+ Math.sin(Math.toRadians(engine.direction)) * engine.cameraDistance;
+		cameraPosY = posY; //+ Math.cos(Math.toRadians(engine.direction)) * engine.cameraDistance;
+		
+			if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+				glfwSetWindowShouldClose(window, true);
+			if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+				move(1, currentSpeed);
+			if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+				move(2, currentSpeed);	
+			if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+				move(3, currentSpeed);
+			if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+				move(4, currentSpeed);
+			if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+				if(jumpTime == 0 && posZ == heightMap[(int)posX][(int)posY]) {
+					originalJumpPosZ = (int) posZ;
+					jumpTime = jumpLength;
 				}
 			}
-			engine.checkingKeys = false;
-			
-			
-			
-			if(!engine.fpsMLook) {
-				double distFromCenter = Math.abs((engine.screenWidth / 2) - mousePosX) + Math.abs((engine.screenHeight / 2) - mousePosY);
-				double maxDistFromCenter = 100;
-				
-				double maxDistFromX = ((engine.screenWidth / 2) - mousePosX) * (maxDistFromCenter / distFromCenter);
-				double maxDistFromY = ((engine.screenHeight / 2) - mousePosY) * (maxDistFromCenter / distFromCenter);
-				
-				if(distFromCenter > maxDistFromCenter) {
-					engine.direction -= 0.06125 * (mousePosX - (((engine.screenWidth / 2)) - maxDistFromX));
-					engine.horizon -= 0.25 * (mousePosY - (((engine.screenHeight / 2)) - maxDistFromY));
-					mouseTransform.mouseMove((display.getLocationOnScreen().x + (engine.screenWidth / 2)) - (int)maxDistFromX, display.getLocationOnScreen().y + (engine.screenHeight / 2) - (int)maxDistFromY);
-				}
+		checkingKeys = false;
+		
+		DoubleBuffer mousePosX = BufferUtils.createDoubleBuffer(1);
+		DoubleBuffer mousePosY = BufferUtils.createDoubleBuffer(1);
+		glfwGetCursorPos(window, mousePosX, mousePosY);
+		
+		direction -= 0.25 * (mousePosX.get(0) - (screenWidth * .5));
+		horizon -= (mousePosY.get(0) - (screenHeight * .5));
+		
+		glfwSetCursorPos(window, renderedScreenWidth / 2.0, renderedScreenHeight / 2.0);
+	
+		if(horizon < 0) horizon = 0;
+		if(horizon > renderedScreenHeight) horizon = renderedScreenHeight;
+		if(direction > 360) direction -= 360;
+		if(direction <= 0) direction += 360;
+		
+		//mouseTransform.mouseMove(display.getLocationOnScreen().x + (screenWidth / 2), display.getLocationOnScreen().y + (screenHeight / 2));
+		
+		//jumping
+		if(jumpTime > 0) {
+				posZ = (float)(((-jumpHeight * Math.pow(jumpTime - (jumpLength * .5), 2) * 4) + jumpHeight) + originalJumpPosZ);
+				jumpTime -= elapsedTime;
+				if(posZ < heightMap[(int)posX][(int)posY]) {
+					posZ = heightMap[(int)posX][(int)posY];
+					jumpTime = 0;
 			}
-			else {
-				engine.direction -= 0.25 * (mousePosX - (engine.screenWidth * .5));
-				engine.horizon -= (mousePosY - (engine.screenHeight * .5));
-				mouseTransform.mouseMove((int)(display.getLocationOnScreen().x + (engine.screenWidth * .5)), (int)(display.getLocationOnScreen().y + (engine.screenHeight * .5)));
-			}
-			
-			if(engine.horizon < 0) engine.horizon = 0;
-			if(engine.horizon > engine.renderedScreenHeight) engine.horizon = engine.renderedScreenHeight;
-			if(engine.direction > 360) engine.direction -= 360;
-			if(engine.direction <= 0) engine.direction += 360;
-			
-			//mouseTransform.mouseMove(display.getLocationOnScreen().x + (engine.screenWidth / 2), display.getLocationOnScreen().y + (engine.screenHeight / 2));
-			
-			//jumping
-			if(engine.jumpTime > 0) {
-					engine.posZ = (((-engine.jumpHeight * Math.pow(engine.jumpTime - (engine.jumpLength / 2), 2) * 4) + engine.jumpHeight) + originalJumpPosZ);
-					engine.jumpTime -= engine.elapsedTime;
-					if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) {
-						engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
-						engine.jumpTime = 0;
-				}
-			}
-			else if(engine.jumpTime < 0) engine.jumpTime = 0;
+		}
+		else if(jumpTime < 0) jumpTime = 0;
 
-			//gravity and move speed slow while falling
-			if(engine.posZ > (engine.heightMap[(int)engine.posX][(int)engine.posY]) && engine.jumpTime == 0) {
-				engine.posZ -= ((fallSpeed) * (engine.cameraHeight * 0.5)) * engine.elapsedTime;
-				if(engine.currentSpeed > engine.fallingMoveSpeed) {
-					engine.currentSpeed -= (engine.moveSpeed - engine.fallingMoveSpeed) * 0.02; // 0.02 = 1 / 50, 50 is falling speed
-				}
-				if(engine.posZ < engine.heightMap[(int)engine.posX][(int)engine.posY]) {
-					engine.posZ = engine.heightMap[(int)engine.posX][(int)engine.posY];
-					fallSpeed = 9.8;
-				}
-				
-				fallSpeed += fallAccel * engine.elapsedTime;
+		//gravity and move speed slow while falling
+		if(posZ > (heightMap[(int)posX][(int)posY]) && jumpTime == 0) {
+			posZ -= ((fallSpeed) * (cameraHeight * 0.5)) * elapsedTime;
+			if(currentSpeed > fallingMoveSpeed) {
+				currentSpeed -= (moveSpeed - fallingMoveSpeed) * 0.02; // 0.02 = 1 / 50, 50 is falling speed
 			}
-			else if(engine.currentSpeed != engine.moveSpeed) {
-				engine.currentSpeed = engine.moveSpeed;
+			if(posZ < heightMap[(int)posX][(int)posY]) {
+				posZ = heightMap[(int)posX][(int)posY];
+				fallSpeed = 9.8;
 			}
+			
+			fallSpeed += fallAccel * elapsedTime;
+		}
+		else if(currentSpeed != moveSpeed) {
+			currentSpeed = moveSpeed;
 		}
 	}
 	
@@ -431,46 +471,38 @@ public class VoxelSpaceEngine implements KeyListener {
 		return tempFrame;
 	}
 	
-	int[] renderFrame() {
-		int[] tempFrame = new int[renderedScreenWidth * renderedScreenHeight];
-		
-		//double dirVectorX = -Math.sin(Math.toRadians(direction));
-		//double dirVectorY = -Math.cos(Math.toRadians(direction));
-		
-		//double[] dir = new double[] {dirVectorX, dirVectorY}; //direction vector, index 0 = x, index 1 = y
-		//double[] cameraPlaneRight = new double[] {dirVectorX + fovScale * Math.cos(Math.toRadians(direction)), dirVectorY - fovScale * Math.sin(Math.toRadians(direction))}; //camera plane distance from the direction vector, if Y is the same as direction vector there will be a 90 degree FOV
-		//double[] cameraPlaneLeft = new double[] {dirVectorX - fovScale * Math.cos(Math.toRadians(direction)), dirVectorY + fovScale * Math.sin(Math.toRadians(direction))};		
-		
-		for(int column = 0; column < renderedScreenWidth; column++) {
-			double rayDeg = ((((double)column / (double)renderedScreenWidth) * ((direction - (FOV * 0.5)) - (direction + (FOV * 0.5)))) + (direction + (FOV * 0.5)));
+	void renderFrame() {
+		for(int column = frameNum & 7; column < renderedScreenWidth; column += 4) {
+			float horizontalScreenPoint = column * recipScreenWidth;
+			float rayDeg = (((horizontalScreenPoint * 0.5f * ((direction - (FOV * 0.5f)) - (direction + (FOV * 0.5f)))) + (direction + (FOV * 0.5f))));
+			
 			if(rayDeg < 0) rayDeg += 360;
 			if(rayDeg >= 360) rayDeg -= 360;
 			
 			
-			double[] rayDir = new double[] {-Math.sin(Math.toRadians(rayDeg)), -Math.cos(Math.toRadians(rayDeg))};
-										//{(((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[0] - cameraPlaneLeft[0])) + cameraPlaneLeft[0], (((double)column / (double)renderedScreenWidth) * (cameraPlaneRight[1] - cameraPlaneLeft[1])) + cameraPlaneLeft[1]};
+			float[] rayDir = new float[] {(float)-Math.sin(Math.toRadians(rayDeg)), (float)-Math.cos(Math.toRadians(rayDeg))};
 			
-			int yBuffer = 0;
+			float yBuffer = 0;	
 			int heightBuffer = 0;
 			
-			double renderDist = 0;
+			float renderDist = 0;
 			
 			boolean inBounds = true;
 			boolean quickCheck = false;
 			
 			//which box of the map we're in
-		    int[] mapSquare = new int[] {(int)posX, (int)posY};
+		    int[] mapSquare = new int[] {(int)cameraPosX, (int)cameraPosY};
 	
 		    //length of ray from current position to next x or y-side
-		    double sideDistX;
-		    double sideDistY;
+		    float sideDistX;
+		    float sideDistY;
 		    
 		    int jumpDist = 1; //dist to jump for the next square, allows adjusting for LOD
 		    int jumpCount = 0;
 	
 		    //length of ray from one x or y-side to next x or y-side
-		    double deltaDistX = Math.abs(1.0 / rayDir[0]);
-		    double deltaDistY = Math.abs(1.0 / rayDir[1]);
+		    float deltaDistX = Math.abs(1f / rayDir[0]);
+		    float deltaDistY = Math.abs(1f / rayDir[1]);
 		      
 		    //which direction to step in
 		    int stepX;
@@ -480,23 +512,23 @@ public class VoxelSpaceEngine implements KeyListener {
 		    
 		    if(rayDir[0] < 0) {
 		    	stepX = -1;
-		    	sideDistX = (posX - mapSquare[0]) * deltaDistX;
+		    	sideDistX = (cameraPosX - mapSquare[0]) * deltaDistX;
 		    }
 		    else {
 		    	stepX = 1;
-		        sideDistX = (mapSquare[0] + 1 - posX) * deltaDistX;
+		        sideDistX = (mapSquare[0] + 1 - cameraPosX) * deltaDistX;
 		    }
 		    if(rayDir[1] < 0) {
 		    	stepY = -1;
-		        sideDistY = (posY - mapSquare[1]) * deltaDistY;
+		        sideDistY = (cameraPosY - mapSquare[1]) * deltaDistY;
 		    }
 		    else {
 		    	stepY = 1;
-		    	sideDistY = (mapSquare[1] + 1 - posY) * deltaDistY;
+		    	sideDistY = (mapSquare[1] + 1 - cameraPosY) * deltaDistY;
 		    }
-			
+		    
 		    //increase check position to next intersection with grid lines	
-			while(inBounds) {
+			while(inBounds && renderDist < drawDist) {
 				for(int i = 0; i < (1 << (jumpDist - 1)); i++) {
 					if (sideDistX < sideDistY) {
 			          sideDistX += deltaDistX;
@@ -508,78 +540,85 @@ public class VoxelSpaceEngine implements KeyListener {
 			          mapSquare[1] += stepY;
 			          side = 1;
 			        }
-					if(++jumpCount == 300 && jumpDist < 5) {
+					if(++jumpCount == 512 && jumpDist < 5) {
 						jumpDist++;
 						jumpCount = 0;
 					}
 				}
 				
-				int testSquareX = ((mapSquare[0]) >> ((jumpDist) - 1)) << (jumpDist - 1);
-				int testSquareY = ((mapSquare[1]) >> ((jumpDist) - 1)) << (jumpDist - 1);
-				
-				/*if(quickCheck || renderDist > 75) {
-					if (side == 0) {
-						renderDist = ((testSquareX - (int)posX) + ((1 - stepX) * 0.5)) / rayDir[0];
-					}
-					else {
-						renderDist = ((testSquareY - (int)posY) + ((1 - stepY) * 0.5)) / rayDir[1];
-					}
-				}
-				else {*/
-					double distX = testSquareX - posX;
-					double distY = testSquareY - posY;
-					
-					
-					renderDist = Math.sqrt(distX * distX + distY * distY);
-				//}
-				
-				double relDir = rayDeg - direction;
-				if((relDir < 45 && relDir > -45) || (relDir < -135 || relDir > 135)) renderDist *= Math.cos(Math.toRadians(relDir));
-				else renderDist *= Math.sin(Math.toRadians(relDir));
-				
-				renderDist = Math.abs(renderDist);
+				int testSquareX = mapSquare[0];//((mapSquare[0]) >> ((jumpDist) - 1)) << (jumpDist - 1);
+				int testSquareY = mapSquare[1];//((mapSquare[1]) >> ((jumpDist) - 1)) << (jumpDist - 1);
 				
 				if(testSquareX >= 0 && testSquareX < mapWidth && testSquareY >= 0 && testSquareY < mapWidth) {
 					if(!quickCheck || heightMap[testSquareX][testSquareY] > heightBuffer) {
-						int heightOnScreen = renderedScreenHeight - (int)(((posZ + cameraHeight) - heightMap[testSquareX][testSquareY]) / renderDist * heightScale + horizon);
+						if(!quickCheck) {
+							if(side == 0) testSquareX -= stepX;
+							else testSquareY -= stepY;
+						}
+						
+						if (side == 0) {
+							renderDist = (((mapSquare[0] - cameraPosX) + ((1 - stepX) * 0.5f)) * deltaDistX);
+						}
+						else {
+							renderDist = (((mapSquare[1] - cameraPosY) + ((1 - stepY) * 0.5f)) * deltaDistY);
+						}
+						
+						double relDir = rayDeg - direction;
+						if((relDir < 45 && relDir > -45) || (relDir < -135 || relDir > 135)) renderDist *= Math.cos(Math.toRadians(relDir));
+						else renderDist *= Math.sin(Math.toRadians(relDir));
+						
+						renderDist = Math.abs(renderDist);
+						
+						float heightOnScreen = ((renderedScreenHeight - (((cameraPosZ + cameraHeight) - 
+								(heightMap[testSquareX][testSquareY])
+								) / renderDist * heightScale + horizon)) * recipScreenHeight);
+						
 						Color mapColor = new Color(colorMap[testSquareX][testSquareY]);
 						
-						if(heightOnScreen > renderedScreenHeight) {
-							heightOnScreen = renderedScreenHeight;
+						if(heightOnScreen > 2) {
+							heightOnScreen = 2;
 							inBounds = false;
 						}
 						else if(heightOnScreen < yBuffer) {
 							continue;
 						}
+
+						glBegin(GL_QUADS);
+							glColor4f(mapColor.getRed() * 0.00392156862f, mapColor.getGreen() * 0.00392156862f, mapColor.getBlue() * 0.00392156862f, 0);
+							glVertex2f((float)horizontalScreenPoint - 1, (float)yBuffer - 1);
+							glVertex2f((float)horizontalScreenPoint - 1 + (float)recipScreenWidth * 2, (float)yBuffer - 1);
+							glVertex2f((float)horizontalScreenPoint - 1 + (float)recipScreenWidth * 2, (float)heightOnScreen - 1);
+							glVertex2f((float)horizontalScreenPoint - 1, (float)heightOnScreen - 1);
+						glEnd();
 						
-						for(int row = heightOnScreen; row > yBuffer; row--) {
-								tempFrame[(((renderedScreenHeight - row) * renderedScreenWidth) + column)] = mapColor.getRGB();
-						}
-							yBuffer = heightOnScreen;
+						yBuffer = heightOnScreen;
+						quickCheck = quickCheck || yBuffer > (2 - horizon * recipScreenHeight);
 						heightBuffer = heightMap[testSquareX][testSquareY];
-						quickCheck = quickCheck || heightOnScreen > renderedScreenHeight - horizon;
 					}
 				}
 				else inBounds = false;
 			}
-			for(int i = renderedScreenHeight - 1; i > yBuffer; i--) {
-				tempFrame[((renderedScreenHeight - i) * renderedScreenWidth) + column] = skyBox[(int)Math.floor(rayDeg * 3)][(skyBox[0].length / 2) + (int)((renderedScreenHeight - horizon) - i)];
-			}
+			glBegin(GL_QUADS);
+				glColor4f(0, 100f * 0.00392156862f, 150f * 0.00392156862f, 0);
+				glVertex2f((float)horizontalScreenPoint - 1, yBuffer - 1);
+				glVertex2f((float)horizontalScreenPoint - 1 + recipScreenWidth * 2, yBuffer - 1);
+				glVertex2f((float)horizontalScreenPoint - 1 + recipScreenWidth * 2, 1f);
+				glVertex2f((float)horizontalScreenPoint - 1, 1f);
+			glEnd();
 		}
-		return tempFrame;
 	}
 	
-	int evaluatePixel(BufferedImage image, int x, int y) {
+	short evaluatePixel(BufferedImage image, int x, int y) {
 		int sampleX = x;
 		int sampleY = y;
 		
 		int color = image.getRGB(sampleX, sampleY);
 		int redChannel = (new Color(color).getRed());
-		return redChannel;
+		return (short)redChannel;
 	}
 	
 	void move(int moveDirection, double speed) {
-		double lastPosZ = posZ;
+		float lastPosZ = posZ;
 		switch(moveDirection) {
 			case 1: //forward
 				posX -= Math.sin(Math.toRadians(direction)) * speed * elapsedTime;
@@ -617,21 +656,10 @@ public class VoxelSpaceEngine implements KeyListener {
 			}
 		}
 	}
-
-	Set<Integer> keysPressed = new HashSet<>();
 	
-	public void keyPressed(KeyEvent in) {
-		if(!checkingKeys)keysPressed.add(in.getKeyCode());
+	public static void initializeCL() {
+		CL.create();
 	}
 	
-	@Override
-	public void keyReleased(KeyEvent e) {
-		if(!checkingKeys)keysPressed.remove(e.getKeyCode());
-	}
-
-	@Override
-	public void keyTyped(KeyEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 }
